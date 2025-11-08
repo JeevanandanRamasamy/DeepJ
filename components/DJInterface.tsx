@@ -106,7 +106,7 @@ const DJInterface: React.FC = () => {
       } else {
         console.log("[DJInterface] ✓ Music library loaded with", mp3Files.length, "tracks");
         setMusicLibrary(mp3Files);
-        setStatus(`Loaded ${mp3Files.length} tracks. Ready to start the AI DJ session!`);
+        setStatus(`Loaded ${mp3Files.length} tracks. Ready to start the DeepJ session!`);
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -156,15 +156,15 @@ const DJInterface: React.FC = () => {
 
       geminiSessionRef.current = session;
       setIsSessionActive(true);
-      setStatus("AI DJ is live! Analyzing the room's vibe...");
-      console.log("[DJInterface] ✓ Session started successfully. AI DJ is live!");
+      setStatus("DeepJ is live! Analyzing the room's vibe...");
+      console.log("[DJInterface] ✓ Session started successfully. DeepJ is live!");
 
     } catch (err) {
       console.error("[DJInterface] ✗ Error starting session:", err);
       let errorMessage = "Failed to start session. Please check your camera/mic permissions and try again.";
       if (err instanceof DOMException) {
         if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          errorMessage = "Camera and microphone access was denied. Please allow access in your browser settings to use the AI DJ.";
+          errorMessage = "Camera and microphone access was denied. Please allow access in your browser settings to use the DeepJ.";
           console.warn("[DJInterface] Media permissions denied by user");
         } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
           errorMessage = "No camera or microphone found. Please connect a device and try again.";
@@ -223,7 +223,7 @@ const DJInterface: React.FC = () => {
       <header className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
           <RobotIcon className="w-8 h-8 text-red-400" />
-          <h1 className="text-2xl font-bold">AI DJ (Local Edition)</h1>
+          <h1 className="text-2xl font-bold">DeepJ</h1>
         </div>
       </header>
 
@@ -249,7 +249,7 @@ const DJInterface: React.FC = () => {
                 disabled={musicLibrary.length === 0}
               >
                 <PowerIcon className="w-6 h-6" />
-                <span>{isSessionActive ? 'Stop AI DJ Session' : 'Start AI DJ Session'}</span>
+                <span>{isSessionActive ? 'Stop DeepJ Session' : 'Start DeepJ Session'}</span>
               </button>
             </div>
 
@@ -282,9 +282,9 @@ const DJInterface: React.FC = () => {
           {!videoRef.current?.srcObject && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 text-center p-4">
               <CameraIcon className="w-16 h-16 text-gray-600 mb-4" />
-              <p className="text-gray-400 font-semibold text-lg">AI DJ is Ready</p>
+              <p className="text-gray-400 font-semibold text-lg">DeepJ is Ready</p>
               <p className="text-gray-500 mt-2">
-                {musicLibrary.length === 0 ? "First, select your music folder." : 'Click "Start AI DJ Session" to begin.'}
+                {musicLibrary.length === 0 ? "First, select your music folder." : 'Click "Start DeepJ Session" to begin.'}
               </p>
             </div>
           )}
