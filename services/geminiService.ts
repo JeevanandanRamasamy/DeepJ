@@ -24,7 +24,7 @@ const detectMoodFunctionDeclaration: FunctionDeclaration = {
             mood: {
                 type: Type.STRING,
                 description: 'The overall mood of the room.',
-                enum: ['chilling', 'focusing', 'partying', 'dancing', 'uplifting', 'background']
+                enum: ['chilling', 'focusing', 'partying', 'happy', 'sad']
             },
             energyLevel: {
                 type: Type.NUMBER,
@@ -85,9 +85,12 @@ const createSystemInstruction = (tracklist: string[]): Content => {
         When you have a confident assessment of the current mood, call the 'reportMood' function.
         
         Guidelines:
-        - Wait for the mood to stabilize before reporting. Analyze for at least 30-60 seconds initially.
-        - If the scene is quiet with minimal activity, suggest 'background' or 'chilling' mood.
-        - If you see high energy, dancing, or loud music, suggest 'partying' or 'dancing' mood.
+        - Wait for the mood to stabilize before reporting. Analyze for at least 10-20 seconds initially.
+        - If the scene is quiet with minimal activity, suggest 'chilling' mood.
+        - If people are focused on their work, typing on their laptop, reading, or studying, suggest 'focusing' mood.
+        - If you see high energy, dancing, or loud music, suggest 'partying' mood.
+        - If you detect generally positive expressions, suggest 'happy' mood.
+        - If you detect generally negative expressions, suggest 'sad' mood.
         - Report changes in mood when they are significant and sustained.
         - Only call the function when you are confident (confidence > 0.7).
         
