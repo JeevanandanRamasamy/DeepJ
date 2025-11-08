@@ -1,4 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { connectToGemini, GeminiSession } from "@/services/geminiService";
+import { MusicSuggestion } from "@/types";
+import VolumeControl from "./VolumeControl";
+import VideoProgressBar from "./ProgressBar";
 
 const DJInterface: React.FC = () => {
   const [status, setStatus] = useState("ready");
@@ -12,9 +17,13 @@ const DJInterface: React.FC = () => {
     artist: "AI DJ",
   });
   const [cameraOn, setCameraOn] = useState(false);
+  const [detectedMood, setDetectedMood] = useState<string | null>(null);
+  const [energyLevel, setEnergyLevel] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-
+  const geminiSessionRef = useRef<GeminiSession | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -28,18 +37,196 @@ const DJInterface: React.FC = () => {
       setStatus("camera on • ai can read the room");
     } catch (err) {
       console.error(err);
+
+  // Doubly linked list based queue implementation
+  class Node<T> {
+    value: T;
+    prev: Node<T> | null = null;
+    next: Node<T> | null = null;
+    constructor(value: T) {
+      this.value = value;
+    }
+  }
+
+  class DoublyLinkedQueue<T> {
+    head: Node<T> | null = null;
+    tail: Node<T> | null = null;
+    cursor: Node<T> | null = null; // current play position
+    length = 0;
+
+    enqueue(value: T) {
+      const node = new Node(value);
+      if (!this.tail) {
+        this.head = this.tail = node;
+      } else {
+        this.tail.next = node;
+        node.prev = this.tail;
+        this.tail = node;
+      }
+      if (!this.cursor) this.cursor = this.head;
+      this.length++;
+      return node;
+    }
+
+    dequeue(): T | null {
+      if (!this.head) return null;
+      const node = this.head;
+      this.head = node.next;
+      if (this.head) this.head.prev = null;
+      else this.tail = null;
+      if (this.cursor === node) this.cursor = this.head;
+      node.next = node.prev = null;
+      this.length--;
+      return node.value;
+    }
+
+    peekCurrent(): T | null {
+      return this.cursor ? this.cursor.value : null;
+    }
+
+    peekNext(): T | null {
+      return this.cursor && this.cursor.next ? this.cursor.next.value : null;
+    }
+
+    peekPrev(): T | null {
+      return this.cursor && this.cursor.prev ? this.cursor.prev.value : null;
+    }
+
+    getNext(): T | null {
+      if (!this.cursor) return null;
+      if (this.cursor.next) {
+        this.cursor = this.cursor.next;
+        return this.cursor.value;
+      }
+      return null;
+    }
+
+    getPrev(): T | null {
+      if (!this.cursor) return null;
+      if (this.cursor.prev) {
+        this.cursor = this.cursor.prev;
+        return this.cursor.value;
+      }
+      return null;
+    }
+
+    toArray(): T[] {
+      const out: T[] = [];
+      let n = this.head;
+      while (n) {
+        out.push(n.value);
+        n = n.next;
+      }
+      return out;
+    }
+
+    clear() {
+      this.head = this.tail = this.cursor = null;
+      this.length = 0;
+    }
+
+    isEmpty() {
+      return this.length === 0;
+    }
+  }
+
+  // initial tracklist to seed the queue
+  const initialTracks = ["chill_vibes.mp3", "focus_mode.mp3", "party_starter.mp3", "happy.mp3"];
+
+  const queueRef = useRef<DoublyLinkedQueue<string>>(new DoublyLinkedQueue());
+
+  // populate queue on mount
+  useEffect(() => {
+    const q = queueRef.current;
+    initialTracks.forEach((t) => q.enqueue(t));
+    // set initial UI from queue
+    const cur = q.peekCurrent();
+    const nxt = q.peekNext();
+    if (cur) {
+      setCurrentTrack({
+        name: cur.replace(".mp3", "").replace(/_/g, " "),
+        artist: "AI DJ",
+      });
+    }
+    if (nxt) {
+      setNextTrack({
+        name: nxt.replace(".mp3", "").replace(/_/g, " "),
+        artist: "AI DJ",
+      });
+    }
+
+    startCamera();
+    return () => {
+      geminiSessionRef.current?.close();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSuggestion = (suggestion: MusicSuggestion) => {
+    setDetectedMood(suggestion.mood);
+    setEnergyLevel(suggestion.energyLevel);
+    const trackName = suggestion.trackFilename.replace(".mp3", "").replace(/_/g, " ");
+
+    // enqueue suggested track to the tail of the queue
+    queueRef.current.enqueue(suggestion.trackFilename);
+
+    // update nextTrack UI based on queue's next item
+    const nextFilename = queueRef.current.peekNext() ?? suggestion.trackFilename;
+    setNextTrack({
+      name: nextFilename.replace(".mp3", "").replace(/_/g, " "),
+      artist: `${suggestion.mood} • Energy: ${suggestion.energyLevel}/10`,
+    });
+
+    if (isSessionActive) {
+      // simulate transition to suggested track after small delay
+      setTimeout(() => {
+        const next = queueRef.current.getNext() ?? suggestion.trackFilename;
+        setCurrentTrack({
+          name: next.replace(".mp3", "").replace(/_/g, " "),
+          artist: `${suggestion.mood} • Energy: ${suggestion.energyLevel}/10`,
+        });
+        setStatus(`playing • ${suggestion.mood} mood detected`);
+        // update nextTrack preview
+        const upcoming = queueRef.current.peekNext();
+        setNextTrack(
+          upcoming
+            ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" }
+            : null
+        );
+      }, 1000);
+    } else {
+      setStatus(`suggestion ready • ${suggestion.mood} detected`);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setCameraOn(true);
+      setStatus("camera on • connecting to AI...");
+      // pass current queue snapshot to the service
+      const session = await connectToGemini(stream, queueRef.current.toArray(), handleSuggestion);
+      geminiSessionRef.current = session;
+      setStatus("AI active • analyzing room mood");
+    } catch (error) {
+      console.error(error);
       setStatus("could not start camera");
     }
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((t) => t.stop());
-      videoRef.current.srcObject = null;
-    }
+    geminiSessionRef.current?.close();
+    geminiSessionRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCameraOn(false);
-    setStatus("camera off");
+    setStatus("camera off • AI disconnected");
+    setDetectedMood(null);
+    setEnergyLevel(null);
   };
 
   const toggleSession = () => {
@@ -53,15 +240,33 @@ const DJInterface: React.FC = () => {
   };
 
   const goNext = () => {
-    if (nextTrack) {
-      setCurrentTrack(nextTrack);
-      setNextTrack({ name: "Crowd Hype", artist: "AI DJ" });
+    const next = queueRef.current.getNext();
+    if (next) {
+      setCurrentTrack({
+        name: next.replace(".mp3", "").replace(/_/g, " "),
+        artist: "AI DJ",
+      });
+      const upcoming = queueRef.current.peekNext();
+      setNextTrack(upcoming ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" } : null);
       setStatus("next track");
+    } else {
+      setStatus("end of queue");
     }
   };
 
   const goPrev = () => {
-    setStatus("previous track (demo)");
+    const prev = queueRef.current.getPrev();
+    if (prev) {
+      setCurrentTrack({
+        name: prev.replace(".mp3", "").replace(/_/g, " "),
+        artist: "AI DJ",
+      });
+      const upcoming = queueRef.current.peekNext();
+      setNextTrack(upcoming ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" } : null);
+      setStatus("previous track");
+    } else {
+      setStatus("start of queue");
+    }
   };
 
   useEffect(() => {
@@ -70,7 +275,6 @@ const DJInterface: React.FC = () => {
 
   return (
     <div className="relative w-screen h-screen bg-[#060b16] text-white overflow-hidden">
-
       {/* CAMERA */}
       <video
         ref={videoRef}
@@ -115,73 +319,77 @@ const DJInterface: React.FC = () => {
           {nextTrack ? nextTrack.name : "TBD"}
         </p>
         <p className="text-[10px] text-white/35 mt-1">{nextTrack?.artist || "AI DJ"}</p>
+        <p className="text-xs text-purple-300/80 uppercase mb-1">Detected Mood</p>
+        <p className="text-lg font-bold capitalize">{detectedMood}</p>
+        <p className="text-[11px] text-purple-200/80 mt-1 text-right">{energyLevel}/10</p>
       </div>
 
       {/* BOTTOM BAR */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl bg-[#04070d]/85 backdrop-blur-md border border-white/5 rounded-2xl px-5 py-2.5 flex items-center gap-4 shadow-[0_12px_40px_rgba(0,0,0,0.4)]">
+      <motion.div
+        className="absolute bottom-5 left-0 right-0 mx-auto w-[92%] max-w-5xl rounded-3xl bg-white/5 backdrop-blur-xl shadow-[0_4px_40px_rgba(255,255,255,0.05)] px-6 py-3 flex items-center gap-5"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
         {/* volume */}
-        <div className="flex items-center gap-2 w-[135px]">
-          <span className="text-lg">🔊</span>
-          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="w-1/2 h-full bg-rose-500 rounded-full" />
-          </div>
-        </div>
+        <VolumeControl />
 
-        {/* progress */}
-        <div className="flex-1 h-1 bg-white/8 rounded-full relative">
-          <div className="absolute left-0 top-0 h-full w-1/3 bg-rose-500 rounded-full" />
-        </div>
+        {/* wavy progress */}
+        <VideoProgressBar duration={180} currentTime={0} onSeek={(time) => console.log(time)} />
 
-        {/* buttons */}
-        <div className="flex items-center gap-3">
-          <button
+        {/* Controls */}
+        <div className="flex items-center gap-4">
+          <motion.button
             onClick={goPrev}
-            className="w-9 h-9 rounded-full bg-white/0 hover:bg-white/5 border border-white/15 text-[11px] text-white/80 transition"
+            whileTap={{ scale: 0.9 }}
+            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-xs backdrop-blur-md"
           >
-            ‹
-          </button>
-          <button
+            ⏮
+          </motion.button>
+          <motion.button
             onClick={toggleSession}
-            className={`w-11 h-11 rounded-full ${
-              isSessionActive
-                ? "bg-rose-500 text-white"
-                : "bg-white/90 text-black"
-            } border border-white/40 text-[11px] font-semibold shadow-[0_6px_20px_rgba(244,63,94,0.5)] transition hover:scale-105`}
+            whileTap={{ scale: 0.9 }}
+            className={`w-11 h-11 rounded-full ${isSessionActive
+              ? "bg-gradient-to-r from-pink-400 to-purple-500 text-white"
+              : "bg-white/90 text-black"
+              } font-semibold shadow-lg hover:shadow-xl transition-transform`}
           >
-            {isSessionActive ? "Pause" : "Play"}
-          </button>
-          <button
+            {isSessionActive ? "⏸" : "▶"}
+          </motion.button>
+          <motion.button
             onClick={goNext}
-            className="w-9 h-9 rounded-full bg-white/0 hover:bg-white/5 border border-white/15 text-[11px] text-white/80 transition"
+            whileTap={{ scale: 0.9 }}
+            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-xs backdrop-blur-md"
           >
-            ›
-          </button>
+            ⏭
+          </motion.button>
         </div>
 
-        {/* cam / ai */}
-        <div className="ml-auto">
+        {/* Camera / AI */}
+        <motion.div
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className="ml-auto"
+        >
           {cameraOn ? (
             <button
               onClick={stopCamera}
-              className="w-8 h-8 rounded-lg bg-white/0 border border-white/15 text-[10px] text-white/90 hover:bg-white/5 transition"
+              className="w-8 h-8 rounded-lg bg-gradient-to-r from-red-500/70 to-pink-600/70 text-white text-xs shadow-md hover:shadow-lg"
             >
               Cam
             </button>
           ) : (
             <button
               onClick={startCamera}
-              className="w-8 h-8 rounded-lg bg-white/0 border border-white/15 text-[10px] text-white/90 hover:bg-white/5 transition"
+              className="w-8 h-8 rounded-lg bg-gradient-to-r from-green-400/70 to-teal-500/70 text-white text-xs shadow-md hover:shadow-lg"
             >
               AI
             </button>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-      {/* status */}
-      <div className="absolute bottom-1 left-4 text-[10px] text-white/40">
-        {status}
-      </div>
+      {/* STATUS */}
+      <div className="absolute bottom-2 left-5 text-[11px] text-white/50">{status}</div>
     </div>
   );
 };
