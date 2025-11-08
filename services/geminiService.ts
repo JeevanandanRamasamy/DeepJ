@@ -137,6 +137,9 @@ export async function connectToGemini(
     const MAX_RECONNECT_ATTEMPTS = 5;
     const RECONNECT_DELAY_MS = 2000;
 
+    // Track last detected mood to avoid redundant API calls
+    let lastMood: string | null = null;
+
     // Function to create a new Live API session
     const createSession = async (): Promise<any> => {
         console.log(`[GeminiService] ${reconnectAttempts > 0 ? `🔄 Reconnecting (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})...` : 'Creating new session...'}`);
@@ -163,6 +166,32 @@ export async function connectToGemini(
                             if (fc.name === 'reportMood') {
                                 const { mood, energyLevel, confidence } = fc.args as { mood: string; energyLevel: number; confidence: number };
                                 console.log(`[GeminiService] Detected - Mood: ${mood}, Energy: ${energyLevel}, Confidence: ${confidence}`);
+
+                                // Check if mood has changed since last detection
+                                if (lastMood === mood) {
+                                    console.log(`[GeminiService] 🔄 Mood unchanged (still ${mood}), skipping song selection`);
+
+                                    // Still acknowledge the mood to the Live API
+                                    if (currentSession) {
+                                        try {
+                                            await currentSession.sendToolResponse({
+                                                functionResponses: {
+                                                    id: fc.id,
+                                                    name: fc.name,
+                                                    response: { result: 'Mood acknowledged, no change detected.' }
+                                                }
+                                            });
+                                            console.log("[GeminiService] ✓ Tool response sent (no change)");
+                                        } catch (error) {
+                                            console.error("[GeminiService] ✗ Error sending tool response:", error);
+                                        }
+                                    }
+                                    return; // Skip the rest of the logic
+                                }
+
+                                // Mood has changed - update tracking and proceed with song selection
+                                console.log(`[GeminiService] 🎭 Mood changed: ${lastMood || 'none'} → ${mood}`);
+                                lastMood = mood;
 
                                 // Stage 2: Select genres
                                 try {
