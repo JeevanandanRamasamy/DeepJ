@@ -218,6 +218,22 @@ const DJInterface: React.FC = () => {
     }
   };
 
+  const goNext = () => {
+    if (nextTrack) {
+      setCurrentTrack(nextTrack);
+      setNextTrack({ name: "Crowd Hype", artist: "AI DJ" });
+      setStatus("next track");
+    }
+  };
+
+  const goPrev = () => {
+    setStatus("previous track (demo)");
+  };
+
+  useEffect(() => {
+    startCamera();
+  }, []);
+
   return (
     <div className="container mx-auto p-4 flex flex-col min-h-screen">
       <header className="flex justify-between items-center mb-4">
@@ -273,7 +289,6 @@ const DJInterface: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-4">Note: Your camera and mic data are streamed to Google for analysis and are not stored. Your music never leaves your computer.</div>
         </div>
 
         {/* Center Column: Video Feed */}
@@ -290,17 +305,15 @@ const DJInterface: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column: Music Info */}
-        <div className="lg:col-span-1 bg-gray-800 rounded-xl p-6 flex flex-col items-center justify-center text-center shadow-lg">
-          {currentTrack ? (
-            <div className='w-full'>
-              <MusicNoteIcon className="w-24 h-24 text-red-500 mb-4 mx-auto" />
-              <h2 className="text-xl font-bold mb-2">Now Playing</h2>
-              <p className="text-gray-300 bg-gray-900/50 p-3 rounded-md break-words">
-                {currentTrack.name}
-              </p>
-              <audio ref={audioRef} controls className="w-full mt-4"></audio>
-            </div>
+        {/* cam / ai */}
+        <div className="ml-auto">
+          {cameraOn ? (
+            <button
+              onClick={stopCamera}
+              className="w-8 h-8 rounded-lg bg-white/5 border border-white/25 text-[10px]"
+            >
+              Cam
+            </button>
           ) : (
             <div className="flex flex-col items-center text-gray-500">
               <MusicNoteIcon className="w-16 h-16 mb-4" />
@@ -311,10 +324,14 @@ const DJInterface: React.FC = () => {
             </div>
           )}
         </div>
-      </main>
     </div>
+
+      {/* status */ }
+  <div className="absolute bottom-1 left-4 text-[10px] text-white/40">
+    {status}
+  </div>
+    </div >
   );
 };
-
 
 export default DJInterface;

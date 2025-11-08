@@ -1,9 +1,22 @@
-import React from 'react';
-import DJInterface from './components/DJInterface';
+// import React from 'react';
+// import DJInterface from './components/DJInterface';
+
+// const App: React.FC = () => {
+//   return (
+//     <div className="min-h-screen bg-gray-900 text-white font-sans">
+//       <DJInterface />
+//     </div>
+//   );
+// };
+
+// export default App;
+
+import React from "react";
+import DJInterface from "./components/DJInterface";
 
 const App: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans">
+    <div className="h-screen w-screen overflow-hidden bg-black">
       <DJInterface />
     </div>
   );
