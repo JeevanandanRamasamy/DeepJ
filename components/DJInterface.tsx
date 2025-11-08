@@ -23,20 +23,6 @@ const DJInterface: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const geminiSessionRef = useRef<GeminiSession | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false,
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setCameraOn(true);
-      setStatus("camera on • ai can read the room");
-    } catch (err) {
-      console.error(err);
 
   // Doubly linked list based queue implementation
   class Node<T> {
@@ -262,13 +248,13 @@ const DJInterface: React.FC = () => {
         artist: "AI DJ",
       });
       const upcoming = queueRef.current.peekNext();
-      setNextTrack(upcoming ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" } : null);
-      setStatus("previous track");
-    } else {
       setStatus("start of queue");
     }
   };
 
+  useEffect(() => {
+    startCamera();
+  }, []);
   useEffect(() => {
     startCamera();
   }, []);
