@@ -8,9 +8,10 @@ export interface GeminiSession {
     close: () => void;
 }
 
-const suggestMusicFunctionDeclaration: FunctionDeclaration = {
-    name: 'suggestMusic',
-    description: 'Suggests a music track from the provided library based on the analyzed mood and energy of the room.',
+// Stage 1: Mood detection function declaration for Live API
+const detectMoodFunctionDeclaration: FunctionDeclaration = {
+    name: 'reportMood',
+    description: 'Report the detected mood and energy level of the room based on audio and video analysis.',
     parameters: {
         type: Type.OBJECT,
         properties: {
@@ -23,32 +24,68 @@ const suggestMusicFunctionDeclaration: FunctionDeclaration = {
                 type: Type.NUMBER,
                 description: 'A score from 1 (very low) to 10 (very high) representing the room\'s energy.'
             },
-            trackFilename: {
-                type: Type.STRING,
-                description: 'The exact filename of the chosen MP3 track from the provided list. Must be one of the available tracks.'
+            confidence: {
+                type: Type.NUMBER,
+                description: 'Confidence level in the mood assessment, from 0 to 1.'
             }
         },
-        required: ['mood', 'energyLevel', 'trackFilename']
+        required: ['mood', 'energyLevel', 'confidence']
     }
 };
 
+// Stage 2: Song selection happens via standard Gemini API
+async function selectSongForMood(
+    mood: string,
+    energyLevel: number,
+    tracklist: string[],
+    apiKey: string
+): Promise<string> {
+    console.log(`[GeminiService] 🎯 Selecting song for mood: ${mood}, energy: ${energyLevel}`);
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    const prompt = `You are an expert DJ. Based on the following mood and energy level, select the most appropriate track from the available list.
+
+Mood: ${mood}
+Energy Level: ${energyLevel}/10
+
+Available Tracks:
+${tracklist.map((track, idx) => `${idx + 1}. ${track}`).join('\n')}
+
+Respond with ONLY the exact filename of the chosen track, nothing else.`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            temperature: 0.7,
+        }
+    });
+
+    const trackFilename = response.text.trim();
+    console.log(`[GeminiService] ✓ Selected track: ${trackFilename}`);
+
+    return trackFilename;
+}
+
 const createSystemInstruction = (tracklist: string[]): Content => {
-    console.log("[GeminiService] Creating system instruction with", tracklist.length, "tracks");
+    console.log("[GeminiService] Creating system instruction for mood detection");
     return {
         role: "user",
         parts: [{
-            text: `You are an AI DJ. Your task is to analyze a real-time stream of audio and video from a gathering. 
-        Based on the visual and audio cues, determine the collective mood and energy level.
-        When you have a confident assessment, call the 'suggestMusic' function to select a track from the user's local library.
+            text: `You are an AI sentiment analyzer for a DJ system. Your task is to analyze a real-time stream of audio and video from a gathering.
         
-        - Do not call the function too frequently; wait for the mood to stabilize or change. An interval of 1-2 minutes is good unless a drastic change occurs.
-        - If the scene is quiet, suggest 'background' or 'chilling' music.
-        - If you see high energy, suggest 'partying' or 'dancing' music.
-        - You MUST choose a track from the following list of available MP3 files. Respond with the exact filename.
-
-        Available Tracks:
-        ${tracklist.join('\n')}
-        `
+        Based on the visual and audio cues, determine the collective mood and energy level.
+        When you have a confident assessment of the current mood, call the 'reportMood' function.
+        
+        Guidelines:
+        - Wait for the mood to stabilize before reporting. Analyze for at least 30-60 seconds initially.
+        - If the scene is quiet with minimal activity, suggest 'background' or 'chilling' mood.
+        - If you see high energy, dancing, or loud music, suggest 'partying' or 'dancing' mood.
+        - Report changes in mood when they are significant and sustained.
+        - Only call the function when you are confident (confidence > 0.7).
+        
+        Do NOT select songs - only report the mood and energy level.`
         }]
     };
 };
@@ -59,56 +96,75 @@ export async function connectToGemini(
     onSuggestion: (suggestion: MusicSuggestion) => void
 ): Promise<GeminiSession> {
     console.log("[GeminiService] connectToGemini called with", tracklist.length, "tracks");
+    console.log("[GeminiService] Stage 1: Setting up Live API for mood detection");
+    console.log("[GeminiService] Stage 2: Will use standard API for song selection");
 
     if (!process.env.API_KEY) {
         console.error("[GeminiService] API_KEY environment variable not set");
         throw new Error("API_KEY environment variable not set");
     }
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = process.env.API_KEY;
+    const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = createSystemInstruction(tracklist);
 
-    console.log("[GeminiService] Initiating connection to Gemini API...");
+    console.log("[GeminiService] Initiating Live API connection for mood detection...");
 
     const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
             responseModalities: [Modality.AUDIO], // Required but we will ignore audio output
-            tools: [{ functionDeclarations: [suggestMusicFunctionDeclaration] }],
+            tools: [{ functionDeclarations: [detectMoodFunctionDeclaration] }],
             systemInstruction
         },
         callbacks: {
             onopen: () => {
-                console.log("[GeminiService] ✓ Session opened successfully");
+                console.log("[GeminiService] ✓ Live API session opened successfully");
                 console.log("[GeminiService] ⏱️ Starting mood detection timer...");
                 console.time("moodDetectionToSongSelection");
             },
             onmessage: async (message: LiveServerMessage) => {
                 // Filter logging: only log tool calls and non-audio content to reduce console noise
                 if (message.toolCall) {
-                    console.log("[GeminiService] Tool call received:", JSON.stringify(message.toolCall, null, 2));
+                    console.log("[GeminiService] 📊 Mood detection function call received");
                     for (const fc of message.toolCall.functionCalls) {
-                        if (fc.name === 'suggestMusic') {
-                            console.timeEnd("moodDetectionToSongSelection");
-                            console.log("[GeminiService] 🎵 suggestMusic function call received:", fc.args);
-                            const suggestion = fc.args as unknown as MusicSuggestion;
-                            onSuggestion(suggestion);
+                        if (fc.name === 'reportMood') {
+                            const { mood, energyLevel, confidence } = fc.args as { mood: string; energyLevel: number; confidence: number };
+                            console.log(`[GeminiService] Detected - Mood: ${mood}, Energy: ${energyLevel}, Confidence: ${confidence}`);
 
-                            console.log(`[GeminiService] Sending tool response for call ID: ${fc.id}`);
+                            // Stage 2: Select song using standard Gemini API
+                            try {
+                                const trackFilename = await selectSongForMood(mood, energyLevel, tracklist, apiKey);
 
-                            sessionPromise.then(session => {
-                                session.sendToolResponse({
-                                    functionResponses: {
-                                        id: fc.id,
-                                        name: fc.name,
-                                        response: { result: "ok, suggestion received and is being played." }
-                                    }
+                                console.timeEnd("moodDetectionToSongSelection");
+
+                                // Create the suggestion object
+                                const suggestion: MusicSuggestion = {
+                                    mood: mood as MusicSuggestion['mood'],
+                                    energyLevel,
+                                    trackFilename
+                                };
+
+                                console.log("[GeminiService] 🎵 Song selected:", suggestion);
+                                onSuggestion(suggestion);
+
+                                // Send response to Live API
+                                sessionPromise.then(session => {
+                                    session.sendToolResponse({
+                                        functionResponses: {
+                                            id: fc.id,
+                                            name: fc.name,
+                                            response: { result: `Mood acknowledged. Selected track: ${trackFilename}` }
+                                        }
+                                    });
+                                    console.log("[GeminiService] ✓ Tool response sent");
+                                    // Restart timer for next mood detection
+                                    console.log("[GeminiService] ⏱️ Restarting mood detection timer...");
+                                    console.time("moodDetectionToSongSelection");
                                 });
-                                console.log(`[GeminiService] ✓ Tool response sent for ${fc.id}`);
-                                // Restart timer for next suggestion
-                                console.log("[GeminiService] ⏱️ Restarting mood detection timer...");
-                                console.time("moodDetectionToSongSelection");
-                            });
+                            } catch (error) {
+                                console.error("[GeminiService] ✗ Error selecting song:", error);
+                            }
                         }
                     }
                 }
