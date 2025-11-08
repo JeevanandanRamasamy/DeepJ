@@ -4,21 +4,21 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/deepj:$SHORT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/deepj:latest'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:latest'
       - '.'
 
   # Push the container image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/deepj:$SHORT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
 
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/deepj:latest'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:latest'
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -28,7 +28,7 @@ steps:
       - 'deploy'
       - 'deepj'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/deepj:$SHORT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -48,8 +48,8 @@ steps:
       - 'GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,VERTEX_AI_LOCATION=us-central1,GEMINI_MODEL=gemini-1.5-pro-latest,FLASK_ENV=production'
 
 images:
-  - 'gcr.io/$PROJECT_ID/deepj:$SHORT_SHA'
-  - 'gcr.io/$PROJECT_ID/deepj:latest'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:latest'
 
 options:
   machineType: 'E2_HIGHCPU_8'
