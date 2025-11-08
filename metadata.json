@@ -1,0 +1,8 @@
+{
+  "name": "AI DJ",
+  "description": "An AI-powered DJ that analyzes the room's mood using your webcam and microphone, then plays the perfect music from Spotify to match the vibe.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
