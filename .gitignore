@@ -205,3 +205,11 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# DeepJ - Music files (too large for git)
+music/**/*.mp3
+music/**/*.wav
+music/**/*.ogg
+music/**/*.flac
+music/**/*.m4a
+music/**/*.aac

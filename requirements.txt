@@ -1,0 +1,14 @@
+# Computer Vision and AI
+opencv-python>=4.8.0
+deepface>=0.0.79
+tensorflow>=2.13.0
+
+# Audio Processing
+pygame>=2.5.0
+python-vlc>=3.0.0
+
+# UI and Visualization
+pillow>=10.0.0
+
+# Utilities
+numpy>=1.24.0
