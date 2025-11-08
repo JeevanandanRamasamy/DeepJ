@@ -6,6 +6,7 @@ import {
     type LiveMusicServerMessage,
     type LiveMusicSession,
 } from '@google/genai';
+import musicData from '../music/music_data.json';
 
 console.log("[GeminiService] Module loaded");
 
@@ -40,25 +41,33 @@ const detectMoodFunctionDeclaration: FunctionDeclaration = {
 };
 
 // Stage 2: Song selection happens via standard Gemini API
-async function selectSongForMood(
+async function selectGenresForMood(
     mood: string,
     energyLevel: number,
-    tracklist: string[],
     apiKey: string
-): Promise<string> {
-    console.log(`[GeminiService] 🎯 Selecting song for mood: ${mood}, energy: ${energyLevel}`);
+): Promise<string[]> {
+    console.log(`[GeminiService] 🎯 Selecting genres for mood: ${mood}, energy: ${energyLevel}`);
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const prompt = `You are an expert DJ. Based on the following mood and energy level, select the most appropriate track from the available list.
+    const prompt = `You are an expert DJ. Based on the following mood and energy level, select the most appropriate genres from the given list:
 
 Mood: ${mood}
 Energy Level: ${energyLevel}/10
 
-Available Tracks:
-${tracklist.map((track, idx) => `${idx + 1}. ${track}`).join('\n')}
+Genres:
+- rock: High-energy guitar-driven music with strong rhythms (partying, happy)
+- pop: Mainstream, catchy music designed for broad appeal (happy, partying, chilling)
+- rap: Rhythmic spoken lyrics over beats, often with strong bass (partying, focusing, happy)
+- indie pop: Alternative pop music with artistic and independent sensibilities (happy, chilling, focusing)
+- classical: Traditional orchestral and instrumental compositions (focusing, chilling, sad)
+- country: Folk-influenced music often featuring guitar, banjo, and storytelling (chilling, happy, sad)
+- jazz: Improvisational music with complex harmonies and syncopated rhythms (chilling, focusing, happy)
+- indie rock: Alternative rock music with independent, non-mainstream approach (focusing, chilling, happy)
+- metal: Heavy, intense music with distorted guitars and powerful vocals (partying, focusing)
+- electronic: Synthesized and computer-generated music with digital beats (partying, focusing, chilling)
 
-Respond with ONLY the exact filename of the chosen track, nothing else.`;
+Respond with ONLY an array of genres from the list above, nothing else.`;
 
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -68,13 +77,13 @@ Respond with ONLY the exact filename of the chosen track, nothing else.`;
         }
     });
 
-    const trackFilename = response.text.trim();
-    console.log(`[GeminiService] ✓ Selected track: ${trackFilename}`);
+    const genres = JSON.parse(response.text) as string[];
+    console.log(`[GeminiService] ✓ Selected genres: ${genres}`);
 
-    return trackFilename;
+    return genres;
 }
 
-const createSystemInstruction = (tracklist: string[]): Content => {
+const createSystemInstruction = (): Content => {
     console.log("[GeminiService] Creating system instruction for mood detection");
     return {
         role: "user",
@@ -94,7 +103,7 @@ const createSystemInstruction = (tracklist: string[]): Content => {
         - Report changes in mood when they are significant and sustained.
         - Only call the function when you are confident (confidence > 0.7).
         
-        Do NOT select songs - only report the mood and energy level.`
+        Only report the mood and energy level, and nothing else.`
         }]
     };
 };
@@ -115,80 +124,162 @@ export async function connectToGemini(
     const apiKey = process.env.API_KEY;
     const ai = new GoogleGenAI({ apiKey });
 
-    const systemInstruction = createSystemInstruction(tracklist);
+    const systemInstruction = createSystemInstruction();
 
     console.log("[GeminiService] Initiating Live API connection for mood detection...");
 
-    const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-        config: {
-            responseModalities: [Modality.AUDIO], // Required but we will ignore audio output
-            tools: [{ functionDeclarations: [detectMoodFunctionDeclaration] }],
-            systemInstruction
-        },
-        callbacks: {
-            onopen: () => {
-                console.log("[GeminiService] ✓ Live API session opened successfully");
-                console.log("[GeminiService] ⏱️ Starting mood detection timer...");
-                console.time("moodDetectionToSongSelection");
+    // Track connection state and reconnection
+    let isSessionOpen = false;
+    let sessionClosed = false;
+    let currentSession: any = null;
+    let shouldReconnect = true;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const RECONNECT_DELAY_MS = 2000;
+
+    // Function to create a new Live API session
+    const createSession = async (): Promise<any> => {
+        console.log(`[GeminiService] ${reconnectAttempts > 0 ? `🔄 Reconnecting (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})...` : 'Creating new session...'}`);
+
+        const sessionPromise = ai.live.connect({
+            model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+            config: {
+                responseModalities: [Modality.AUDIO], // Required but we will ignore audio output
+                tools: [{ functionDeclarations: [detectMoodFunctionDeclaration] }],
+                systemInstruction
             },
-            onmessage: async (message: LiveServerMessage) => {
-                // Filter logging: only log tool calls and non-audio content to reduce console noise
-                if (message.toolCall) {
-                    console.log("[GeminiService] 📊 Mood detection function call received");
-                    for (const fc of message.toolCall.functionCalls) {
-                        if (fc.name === 'reportMood') {
-                            const { mood, energyLevel, confidence } = fc.args as { mood: string; energyLevel: number; confidence: number };
-                            console.log(`[GeminiService] Detected - Mood: ${mood}, Energy: ${energyLevel}, Confidence: ${confidence}`);
+            callbacks: {
+                onopen: () => {
+                    isSessionOpen = true;
+                    sessionClosed = false;
+                    reconnectAttempts = 0;
+                    console.log("[GeminiService] ✓ Live API session opened successfully");
+                },
+                onmessage: async (message: LiveServerMessage) => {
+                    // Filter logging: only log tool calls and non-audio content to reduce console noise
+                    if (message.toolCall) {
+                        console.log("[GeminiService] 📊 Mood detection function call received");
+                        for (const fc of message.toolCall.functionCalls) {
+                            if (fc.name === 'reportMood') {
+                                const { mood, energyLevel, confidence } = fc.args as { mood: string; energyLevel: number; confidence: number };
+                                console.log(`[GeminiService] Detected - Mood: ${mood}, Energy: ${energyLevel}, Confidence: ${confidence}`);
 
-                            // Stage 2: Select song using standard Gemini API
-                            try {
-                                const trackFilename = await selectSongForMood(mood, energyLevel, tracklist, apiKey);
+                                // Stage 2: Select genres
+                                try {
+                                    const genres = await selectGenresForMood(mood, energyLevel, apiKey);
+                                    console.log(`[GeminiService] ✓ Selected genres: ${genres}`);
 
-                                console.timeEnd("moodDetectionToSongSelection");
+                                    const genre = genres[Math.floor(Math.random() * genres.length)];
+                                    console.log(`[GeminiService] 🎯 Chosen genre for track selection: ${genre}`);
 
-                                // Create the suggestion object
-                                const suggestion: MusicSuggestion = {
-                                    mood: mood as MusicSuggestion['mood'],
-                                    energyLevel,
-                                    trackFilename
-                                };
+                                    const track = musicData[genre][Math.floor(Math.random() * musicData[genre].length)]["name"];
+                                    const trackFilename = `${genre}/${track}.mp3`;
 
-                                console.log("[GeminiService] 🎵 Song selected:", suggestion);
-                                onSuggestion(suggestion);
+                                    // Create the suggestion object
+                                    const suggestion: MusicSuggestion = {
+                                        mood: mood as MusicSuggestion['mood'],
+                                        energyLevel,
+                                        trackFilename
+                                    };
 
-                                // Send response to Live API
-                                sessionPromise.then(session => {
-                                    session.sendToolResponse({
-                                        functionResponses: {
-                                            id: fc.id,
-                                            name: fc.name,
-                                            response: { result: `Mood acknowledged. Selected track: ${trackFilename}` }
+                                    console.log("[GeminiService] 🎵 Song selected:", suggestion);
+                                    onSuggestion(suggestion);
+
+                                    // Send response to Live API
+                                    if (currentSession) {
+                                        try {
+                                            await currentSession.sendToolResponse({
+                                                functionResponses: {
+                                                    id: fc.id,
+                                                    name: fc.name,
+                                                    response: { result: 'Mood acknowledged.' }
+                                                }
+                                            });
+                                            console.log("[GeminiService] ✓ Tool response sent");
+                                        } catch (error) {
+                                            console.error("[GeminiService] ✗ Error sending tool response:", error);
+                                            console.log("[GeminiService] This might indicate the session closed, will reconnect on next attempt");
                                         }
-                                    });
-                                    console.log("[GeminiService] ✓ Tool response sent");
-                                    // Restart timer for next mood detection
-                                    console.log("[GeminiService] ⏱️ Restarting mood detection timer...");
-                                    console.time("moodDetectionToSongSelection");
-                                });
-                            } catch (error) {
-                                console.error("[GeminiService] ✗ Error selecting song:", error);
+                                    }
+                                } catch (error) {
+                                    console.error("[GeminiService] ✗ Error selecting song:", error);
+                                }
                             }
                         }
                     }
-                }
-            },
-            onerror: (e: ErrorEvent) => {
-                console.error("[GeminiService] ✗ Error from Gemini session:", e);
-            },
-            onclose: () => {
-                console.log("[GeminiService] Session closed");
-            },
-        }
-    });
+                },
+                onerror: (e: ErrorEvent) => {
+                    isSessionOpen = false;
+                    console.error("[GeminiService] ✗ Error from Gemini session:", e);
+                    // Trigger reconnection
+                    if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        setTimeout(() => attemptReconnect(), RECONNECT_DELAY_MS);
+                    }
+                },
+                onclose: () => {
+                    isSessionOpen = false;
+                    sessionClosed = true;
+                    console.log("[GeminiService] ⚠️ Session closed");
+                    // Trigger reconnection
+                    if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        setTimeout(() => attemptReconnect(), RECONNECT_DELAY_MS);
+                    } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                        console.error("[GeminiService] ✗ Max reconnection attempts reached. Giving up.");
+                    }
+                },
+            }
+        });
 
-    const session = await sessionPromise;
+        return await sessionPromise;
+    };
+
+    // Function to handle reconnection
+    const attemptReconnect = async () => {
+        if (!shouldReconnect) {
+            console.log("[GeminiService] Reconnection disabled, not reconnecting");
+            return;
+        }
+
+        reconnectAttempts++;
+
+        if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+            console.error("[GeminiService] ✗ Max reconnection attempts exceeded");
+            return;
+        }
+
+        try {
+            console.log(`[GeminiService] 🔄 Attempting to reconnect... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+            currentSession = await createSession();
+            console.log("[GeminiService] ✓ Reconnection successful!");
+        } catch (error) {
+            console.error("[GeminiService] ✗ Reconnection failed:", error);
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                setTimeout(() => attemptReconnect(), RECONNECT_DELAY_MS);
+            }
+        }
+    };
+
+    // Create initial session
+    currentSession = await createSession();
     console.log("[GeminiService] Session object received");
+
+    // Safe wrapper for sendRealtimeInput that checks connection state
+    const safeSendRealtimeInput = (input: { media: GeminiBlob }) => {
+        if (!isSessionOpen || sessionClosed || !currentSession) {
+            console.warn("[GeminiService] ⚠️ Attempted to send data but session is not open. Skipping.");
+            return;
+        }
+        try {
+            currentSession.sendRealtimeInput(input);
+        } catch (error) {
+            console.error("[GeminiService] ✗ Error sending realtime input:", error);
+            isSessionOpen = false;
+            // Trigger reconnection
+            if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                setTimeout(() => attemptReconnect(), RECONNECT_DELAY_MS);
+            }
+        }
+    };
 
     // --- Audio Streaming ---
     console.log("[GeminiService] Setting up audio streaming...");
@@ -200,15 +291,8 @@ export async function connectToGemini(
     scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
         const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
         const pcmBlob = createPcmBlob(inputData);
-
         audioChunkCount++;
-        if (audioChunkCount % 100 === 0) {
-            console.log(`[GeminiService] Audio chunks sent: ${audioChunkCount}`);
-        }
-
-        sessionPromise.then((session) => {
-            session.sendRealtimeInput({ media: pcmBlob });
-        });
+        safeSendRealtimeInput({ media: pcmBlob });
     };
     audioSource.connect(scriptProcessor);
     scriptProcessor.connect(audioContext.destination);
@@ -233,13 +317,10 @@ export async function connectToGemini(
                 canvas.toBlob(async (blob) => {
                     if (blob) {
                         videoFrameCount++;
-                        console.log(`[GeminiService] 📹 Sending video frame #${videoFrameCount}`);
 
                         const base64Data = await blobToBase64(blob);
-                        sessionPromise.then((session) => {
-                            session.sendRealtimeInput({
-                                media: { data: base64Data, mimeType: 'image/jpeg' }
-                            });
+                        safeSendRealtimeInput({
+                            media: { data: base64Data, mimeType: 'image/jpeg' }
                         });
                     }
                 }, 'image/jpeg', 0.7);
@@ -249,14 +330,19 @@ export async function connectToGemini(
     console.log("[GeminiService] ✓ Video streaming setup complete (interval set)");
 
     return {
-        sendRealtimeInput: session.sendRealtimeInput,
+        sendRealtimeInput: safeSendRealtimeInput,
         close: () => {
             console.log("[GeminiService] Closing session and cleaning up...");
+            shouldReconnect = false; // Disable reconnection when user explicitly closes
+            isSessionOpen = false;
+            sessionClosed = true;
             clearInterval(videoInterval);
             scriptProcessor.disconnect();
             audioSource.disconnect();
             audioContext.close();
-            session.close();
+            if (currentSession) {
+                currentSession.close();
+            }
             console.log("[GeminiService] ✓ Cleanup complete. Audio chunks sent:", audioChunkCount, "Video frames sent:", videoFrameCount);
         }
     };
