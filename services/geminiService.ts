@@ -1,11 +1,5 @@
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type, Blob as GeminiBlob, Content } from "@google/genai";
 import { MusicSuggestion } from "../types";
-import { decode, decodeAudioData } from "@/lib/audio";
-import {
-    type LiveMusicGenerationConfig,
-    type LiveMusicServerMessage,
-    type LiveMusicSession,
-} from '@google/genai';
 import musicData from '../music/music_data.json';
 
 console.log("[GeminiService] Module loaded");
