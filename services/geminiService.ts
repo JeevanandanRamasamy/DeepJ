@@ -111,7 +111,7 @@ export async function connectToGemini(
     console.log("[GeminiService] Stage 1: Setting up Live API for mood detection");
     console.log("[GeminiService] Stage 2: Will use standard API for song selection");
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = "AIzaSyBBYn1cDAkLx_OPgDHj4Yeka9r6A6pY1s0"; // WE KNOW THIS IS CURSED BUT IT'S A DEMO
     if (!apiKey) {
       console.error("[GeminiService] VITE_GEMINI_API_KEY environment variable not set in the client bundle");
     }
