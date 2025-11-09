@@ -4,6 +4,7 @@ import { connectToGemini, GeminiSession } from "@/services/geminiService";
 import { MusicSuggestion } from "@/types";
 import VolumeControl from "./VolumeControl";
 import VideoProgressBar from "./ProgressBar";
+import MyAudioPlayer from "./audioPlayer";
 
 const DJInterface: React.FC = () => {
   const [status, setStatus] = useState("ready");
@@ -332,6 +333,10 @@ const DJInterface: React.FC = () => {
 
         {/* Controls */}
         <div className="flex items-center gap-4">
+          <motion.button>
+            <MyAudioPlayer src={"https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3"} />
+          </motion.button>
+          
           <motion.button
             onClick={goPrev}
             whileTap={{ scale: 0.9 }}
