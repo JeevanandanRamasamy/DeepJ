@@ -74,6 +74,70 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     ],
   };
 
+  // Genre-specific prompts for more targeted music generation
+  const GENRE_PROMPTS: Record<string, Prompt[]> = {
+    rock: [
+      { promptId: "rock-1", text: "Distorted Guitar", weight: 1, color: "#ff4444" },
+      { promptId: "rock-2", text: "Driving Drums", weight: 0.9, color: "#ff6666" },
+      { promptId: "rock-3", text: "Power Chords", weight: 0.8, color: "#ff8888" },
+      { promptId: "rock-4", text: "Anthemic", weight: 0.7, color: "#ffaaaa" },
+    ],
+    pop: [
+      { promptId: "pop-1", text: "Catchy Melody", weight: 1, color: "#ff25f6" },
+      { promptId: "pop-2", text: "Upbeat", weight: 0.9, color: "#ff77f9" },
+      { promptId: "pop-3", text: "Synth Pop", weight: 0.8, color: "#ffa9fc" },
+      { promptId: "pop-4", text: "Bright Vocals", weight: 0.7, color: "#ffdbfe" },
+    ],
+    rap: [
+      { promptId: "rap-1", text: "Hard Hitting Beats", weight: 1, color: "#ffdd28" },
+      { promptId: "rap-2", text: "808 Bass", weight: 0.95, color: "#ffe866" },
+      { promptId: "rap-3", text: "Hip Hop Drums", weight: 0.85, color: "#fff099" },
+      { promptId: "rap-4", text: "Trap Hi-Hats", weight: 0.75, color: "#fff7cc" },
+    ],
+    "indie pop": [
+      { promptId: "indiepop-1", text: "Dream Pop", weight: 1, color: "#9900ff" },
+      { promptId: "indiepop-2", text: "Jangly Guitars", weight: 0.85, color: "#bb44ff" },
+      { promptId: "indiepop-3", text: "Ethereal Vocals", weight: 0.75, color: "#cc77ff" },
+      { promptId: "indiepop-4", text: "Atmospheric", weight: 0.65, color: "#ddaaff" },
+    ],
+    classical: [
+      { promptId: "classical-1", text: "Orchestral", weight: 1, color: "#3dffab" },
+      { promptId: "classical-2", text: "Piano Solo", weight: 0.85, color: "#6fffbd" },
+      { promptId: "classical-3", text: "String Quartet", weight: 0.8, color: "#a1ffce" },
+      { promptId: "classical-4", text: "Baroque", weight: 0.7, color: "#d3ffe0" },
+    ],
+    country: [
+      { promptId: "country-1", text: "Acoustic Guitar", weight: 1, color: "#d8ff3e" },
+      { promptId: "country-2", text: "Banjo", weight: 0.8, color: "#e1ff71" },
+      { promptId: "country-3", text: "Slide Guitar", weight: 0.75, color: "#eaffa4" },
+      { promptId: "country-4", text: "Folk Storytelling", weight: 0.7, color: "#f3ffd7" },
+    ],
+    jazz: [
+      { promptId: "jazz-1", text: "Smooth Jazz", weight: 1, color: "#2af6de" },
+      { promptId: "jazz-2", text: "Saxophone", weight: 0.9, color: "#5df8e6" },
+      { promptId: "jazz-3", text: "Walking Bass", weight: 0.8, color: "#90faee" },
+      { promptId: "jazz-4", text: "Swing", weight: 0.75, color: "#c3fcf6" },
+    ],
+    "indie rock": [
+      { promptId: "indierock-1", text: "Alt Rock", weight: 1, color: "#5200ff" },
+      { promptId: "indierock-2", text: "Reverb Guitar", weight: 0.85, color: "#7744ff" },
+      { promptId: "indierock-3", text: "Post Rock", weight: 0.75, color: "#9977ff" },
+      { promptId: "indierock-4", text: "Lo-Fi Production", weight: 0.7, color: "#bbaaff" },
+    ],
+    metal: [
+      { promptId: "metal-1", text: "Heavy Riffs", weight: 1, color: "#ff0000" },
+      { promptId: "metal-2", text: "Double Bass Drums", weight: 0.95, color: "#ff3333" },
+      { promptId: "metal-3", text: "Growling Bass", weight: 0.85, color: "#ff6666" },
+      { promptId: "metal-4", text: "Shredding Guitar", weight: 0.8, color: "#ff9999" },
+    ],
+    electronic: [
+      { promptId: "electronic-1", text: "Synth Arpeggios", weight: 1, color: "#00ffff" },
+      { promptId: "electronic-2", text: "Four on the Floor", weight: 0.9, color: "#44ffff" },
+      { promptId: "electronic-3", text: "Techno Bass", weight: 0.85, color: "#88ffff" },
+      { promptId: "electronic-4", text: "Ambient Pads", weight: 0.75, color: "#bbffff" },
+    ],
+  };
+
   // Doubly linked list based queue implementation
   class Node<T> {
     value: T;
@@ -323,63 +387,96 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
   }, [useLiveMusic]);
 
   const handleSuggestion = (suggestion: MusicSuggestion) => {
+    console.log("[DJInterface] 📥 Received suggestion:", suggestion);
+    console.log("[DJInterface] 🔍 State check - useLiveMusic:", useLiveMusic, "liveMusicHelperRef.current:", !!liveMusicHelperRef.current);
+
     setDetectedMood(suggestion.mood);
     setEnergyLevel(suggestion.energyLevel);
     const trackName = suggestion.trackFilename.replace(".mp3", "").replace(/_/g, " ");
 
-    // Update LiveMusicHelper prompts based on detected mood
-    if (useLiveMusic && liveMusicHelperRef.current) {
-      const moodPrompts = MOOD_PROMPTS[suggestion.mood] || MOOD_PROMPTS.chilling;
+    // Update LiveMusicHelper prompts based on detected mood/genre
+    // Do this regardless of whether live music is currently active, so prompts are ready when user switches
+    if (liveMusicHelperRef.current) {
+      console.log("[DJInterface] ✅ Updating LiveMusicHelper prompts");
+      // Prioritize genre-specific prompts if available, otherwise fall back to mood prompts
+      let selectedPrompts: Prompt[];
+
+      if (suggestion.genre && GENRE_PROMPTS[suggestion.genre]) {
+        console.log(`[DJInterface] 🎸 Using genre-specific prompts for: ${suggestion.genre}`);
+        selectedPrompts = GENRE_PROMPTS[suggestion.genre];
+      } else {
+        console.log(`[DJInterface] 🎭 Using mood-based prompts for: ${suggestion.mood}`);
+        selectedPrompts = MOOD_PROMPTS[suggestion.mood] || MOOD_PROMPTS.chilling;
+      }
+
+      console.log(`[DJInterface] 🎼 Selected prompts:`, selectedPrompts.map(p => p.text));
 
       // Adjust weights based on energy level
-      const adjustedPrompts = moodPrompts.map((p, idx) => ({
+      const adjustedPrompts = selectedPrompts.map((p, idx) => ({
         ...p,
         weight: Math.max(0, Math.min(1, (suggestion.energyLevel / 10) * (1 - idx * 0.15)))
       }));
 
+      console.log(`[DJInterface] ⚖️ Adjusted weights:`, adjustedPrompts.map(p => `${p.text}: ${p.weight.toFixed(2)}`));
+
       const promptsMap = new Map<string, Prompt>();
       adjustedPrompts.forEach(p => promptsMap.set(p.promptId, p));
 
+      console.log(`[DJInterface] 🔄 Calling setWeightedPrompts with ${adjustedPrompts.length} prompts`);
       liveMusicHelperRef.current.setWeightedPrompts(promptsMap);
       setActivePrompts(adjustedPrompts.filter(p => p.weight > 0));
 
-      setCurrentTrack({
-        name: `Live AI - ${suggestion.mood}`,
-        artist: `Energy: ${suggestion.energyLevel}/10`
-      });
-      setStatus(`AI music adapting to ${suggestion.mood} mood`);
-      return;
+      // Only update UI if live music is active
+      if (useLiveMusic) {
+        console.log("[DJInterface] 🎵 Live music mode active, updating UI");
+        setCurrentTrack({
+          name: `Live AI - ${suggestion.genre || suggestion.mood}`,
+          artist: `Energy: ${suggestion.energyLevel}/10`
+        });
+        setStatus(`AI music adapting to ${suggestion.genre || suggestion.mood} ${suggestion.genre ? 'genre' : 'mood'}`);
+      } else {
+        console.log("[DJInterface] ℹ️ Prompts updated but live music not active yet");
+      }
+
+      console.log(`[DJInterface] ✅ Prompts updated successfully`);
+    } else {
+      console.log("[DJInterface] ⚠️ LiveMusicHelper not initialized yet");
     }
 
-    // Original track queue logic for non-live music mode
-    queueRef.current.enqueue(suggestion.trackFilename);
+    // Continue with regular queue logic if not in live music mode
+    if (!useLiveMusic) {
+      console.log("[DJInterface] ℹ️ Not in live music mode, using regular queue logic");
 
-    // update nextTrack UI based on queue's next item
-    const nextFilename = queueRef.current.peekNext() ?? suggestion.trackFilename;
-    setNextTrack({
-      name: nextFilename.replace(".mp3", "").replace(/_/g, " "),
-      artist: `${suggestion.mood} • Energy: ${suggestion.energyLevel}/10`,
-    });
+      // Original track queue logic for non-live music mode
+      queueRef.current.enqueue(suggestion.trackFilename);
 
-    if (isSessionActive) {
-      // simulate transition to suggested track after small delay
-      setTimeout(() => {
-        const next = queueRef.current.getNext() ?? suggestion.trackFilename;
-        setCurrentTrack({
-          name: next.replace(".mp3", "").replace(/_/g, " "),
-          artist: `${suggestion.mood} • Energy: ${suggestion.energyLevel}/10`,
-        });
-        setStatus(`playing • ${suggestion.mood} mood detected`);
-        // update nextTrack preview
-        const upcoming = queueRef.current.peekNext();
-        setNextTrack(
-          upcoming
-            ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" }
-            : null
-        );
-      }, 1000);
-    } else {
-      setStatus(`suggestion ready • ${suggestion.mood} detected`);
+      // update nextTrack UI based on queue's next item
+      const nextFilename = queueRef.current.peekNext() ?? suggestion.trackFilename;
+      setNextTrack({
+        name: nextFilename.replace(".mp3", "").replace(/_/g, " "),
+        artist: `${suggestion.mood} • Energy: ${suggestion.energyLevel}/10`,
+      });
+
+      if (isSessionActive) {
+        // simulate transition to suggested track after small delay
+        setTimeout(() => {
+          const next = queueRef.current.getNext() ?? suggestion.trackFilename;
+          setCurrentTrack({
+            name: next.replace(".mp3", "").replace(/_/g, " "),
+            artist: `${suggestion.mood} • Energy: ${suggestion.energyLevel}/10`,
+          });
+          setStatus(`playing • ${suggestion.mood} mood detected`);
+          // update nextTrack preview
+          const upcoming = queueRef.current.peekNext();
+          setNextTrack(
+            upcoming
+              ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" }
+              : null
+          );
+        }, 1000);
+      } else {
+        setStatus(`suggestion ready • ${suggestion.mood} detected`);
+      }
     }
   };
 
@@ -449,7 +546,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
     setUseLiveMusic(!useLiveMusic);
     setStatus(!useLiveMusic ? "Live AI music mode enabled" : "Track playback mode enabled");
-  }; 
+  };
 
   const getSongDataForCard = (filename: string) => {
     if (filename === null) return {
@@ -471,7 +568,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       artist: artistName,
     };
   }
-  
+
   const goNext = () => {
     // Remember if we were playing before changing tracks
     const wasPlaying = isSessionActive;
@@ -491,7 +588,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       const upcoming = queueRef.current.peekNext();
       setNextTrack(upcoming ? getSongDataForCard(upcoming) : getSongDataForCard(null));
       setStatus(wasPlaying ? "loading next track..." : "next track");
-      
+
       // ACTUALLY SWITCH TO THE NEXT TRACK
       // Set auto-play flag if we were playing
       shouldAutoPlayAfterSrcChange.current = wasPlaying;
@@ -642,90 +739,89 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
       {/* BOTTOM BAR */}
       {/* BOTTOM BAR */}
-<motion.div
-  className="absolute bottom-4 inset-x-0 flex justify-center"
-  initial={{ opacity: 0, y: 16 }}
-  animate={{ opacity: 1, y: 0 }}
->
-  <div className="w-[72%] max-w-4xl bg-[#06080e]/95 border border-white/5 rounded-[26px] px-5 py-3 flex items-center gap-4 shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
-    {/* LEFT: volume */}
-    {/* <div className="flex items-center gap-3 min-w-[160px]">
+      <motion.div
+        className="absolute bottom-4 inset-x-0 flex justify-center"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="w-[72%] max-w-4xl bg-[#06080e]/95 border border-white/5 rounded-[26px] px-5 py-3 flex items-center gap-4 shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
+          {/* LEFT: volume */}
+          {/* <div className="flex items-center gap-3 min-w-[160px]">
       <div className="w-32">
         <VolumeControl />
       </div>
     </div> */}
 
-    {/* MIDDLE: progress (your real progress component) */}
-    <div className="flex-1">
-      <VideoProgressBar
-        duration={duration || 180}
-        currentTime={currentTime}
-        onSeek={handleSeek}
-      />
-    </div>
+          {/* MIDDLE: progress (your real progress component) */}
+          <div className="flex-1">
+            <VideoProgressBar
+              duration={duration || 180}
+              currentTime={currentTime}
+              onSeek={handleSeek}
+            />
+          </div>
 
-{/* RIGHT: controls */}
-<div className="flex items-center gap-3">
-  {/* hidden audio element */}
-  <audio
-    hidden
-    ref={audioRef}
-    src={audioSrc}
-    controls
-    onLoadedMetadata={handleLoadedMetadata}
-    onTimeUpdate={handleTimeUpdate}
-    onEnded={handleEnded}
-  />
+          {/* RIGHT: controls */}
+          <div className="flex items-center gap-3">
+            {/* hidden audio element */}
+            <audio
+              hidden
+              ref={audioRef}
+              src={audioSrc}
+              controls
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleEnded}
+            />
 
-  {/* prev – always show */}
-  <button
-    onClick={goPrev}
-    className="w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center hover:border-white/40 transition"
-  >
-    ‹
-  </button>
+            {/* prev – always show */}
+            <button
+              onClick={goPrev}
+              className="w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center hover:border-white/40 transition"
+            >
+              ‹
+            </button>
 
-  {/* play / pause with glow */}
-  <div className="relative flex items-center justify-center">
-    <div className="absolute w-14 h-14 rounded-full bg-[#ff4f6e]/55 blur-lg opacity-80 pointer-events-none" />
-    <button
-      onClick={toggleSession}
-      className="relative w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,79,110,0.5)] hover:scale-105 transition"
-    >
-      {((useLiveMusic && playbackState === "playing") || (!useLiveMusic && isSessionActive)) ? (
-        <span className="flex gap-1">
-          <span className="w-1.5 h-4 bg-black rounded-sm" />
-          <span className="w-1.5 h-4 bg-black rounded-sm" />
-        </span>
-      ) : (
-        <span className="w-0 h-0 border-l-[15px] border-l-black border-y-[8px] border-y-transparent ml-[2px]" />
-      )}
-    </button>
-  </div>
+            {/* play / pause with glow */}
+            <div className="relative flex items-center justify-center">
+              <div className="absolute w-14 h-14 rounded-full bg-[#ff4f6e]/55 blur-lg opacity-80 pointer-events-none" />
+              <button
+                onClick={toggleSession}
+                className="relative w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,79,110,0.5)] hover:scale-105 transition"
+              >
+                {((useLiveMusic && playbackState === "playing") || (!useLiveMusic && isSessionActive)) ? (
+                  <span className="flex gap-1">
+                    <span className="w-1.5 h-4 bg-black rounded-sm" />
+                    <span className="w-1.5 h-4 bg-black rounded-sm" />
+                  </span>
+                ) : (
+                  <span className="w-0 h-0 border-l-[15px] border-l-black border-y-[8px] border-y-transparent ml-[2px]" />
+                )}
+              </button>
+            </div>
 
-  {/* next – always show */}
-  <button
-    onClick={goNext}
-    className="w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center hover:border-white/40 transition"
-  >
-    ›
-  </button>
+            {/* next – always show */}
+            <button
+              onClick={goNext}
+              className="w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center hover:border-white/40 transition"
+            >
+              ›
+            </button>
 
-  {/* Tracks / Live toggle – AFTER prev/play/next */}
-  <motion.button
-    onClick={toggleLiveMusicMode}
-    whileTap={{ scale: 0.9 }}
-    className={`px-3 py-1.5 rounded-full text-[10px] font-semibold backdrop-blur-md transition-all ${
-      useLiveMusic
-        ? "bg-gradient-to-r from-cyan-400/80 to-blue-500/80 text-white border border-cyan-300/50"
-        : "bg-white/10 hover:bg-white/20 text-white/70 border border-white/20"
-    }`}
-  >
-    {useLiveMusic ? "🎼 Live AI" : "💿 Tracks"}
-  </motion.button>
+            {/* Tracks / Live toggle – AFTER prev/play/next */}
+            <motion.button
+              onClick={toggleLiveMusicMode}
+              whileTap={{ scale: 0.9 }}
+              className={`px-3 py-1.5 rounded-full text-[10px] font-semibold backdrop-blur-md transition-all ${useLiveMusic
+                  ? "bg-gradient-to-r from-cyan-400/80 to-blue-500/80 text-white border border-cyan-300/50"
+                  : "bg-white/10 hover:bg-white/20 text-white/70 border border-white/20"
+                }`}
+            >
+              {useLiveMusic ? "🎼 Live AI" : "💿 Tracks"}
+            </motion.button>
 
-  {/* cam toggle */}
-  {/* {cameraOn ? (
+            {/* cam toggle */}
+            {/* {cameraOn ? (
     <button
       onClick={stopCamera}
       className="h-10 px-4 rounded-2xl border border-red-200/30 bg-red-500/15 text-red-100 text-sm hover:bg-red-500/25 transition"
@@ -741,21 +837,21 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     </button>
   )} */}
 
-  {/* End Session */}
-  <button
-    onClick={() => {
-      stopCamera();
-      setIsSessionActive(false);
-      onEndSession?.(); // if you're passing it from App
-    }}
-    className="h-10 px-5 rounded-2xl border border-white/10 bg-[#ff4f6e]/20 text-[#ff4f6e] text-sm hover:bg-[#ff4f6e]/30 transition"
-  >
-    End Session
-  </button>
-</div>
+            {/* End Session */}
+            <button
+              onClick={() => {
+                stopCamera();
+                setIsSessionActive(false);
+                onEndSession?.(); // if you're passing it from App
+              }}
+              className="h-10 px-5 rounded-2xl border border-white/10 bg-[#ff4f6e]/20 text-[#ff4f6e] text-sm hover:bg-[#ff4f6e]/30 transition"
+            >
+              End Session
+            </button>
+          </div>
 
-  </div>
-</motion.div>
+        </div>
+      </motion.div>
 
       {/* STATUS */}
       <div className="absolute bottom-2 left-5 text-[11px] text-white/50">{status}</div>
