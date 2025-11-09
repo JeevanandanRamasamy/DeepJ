@@ -823,3 +823,15 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 };
 
 export default DJInterface;
+
+/*
+Hardware banned section 
+    {
+            "name": "Wi$h Li$t",
+            "artist": "Taylor Swift",
+            "album": "The Life of a Showgirl",
+            "popularity": 93,
+            "id": "2TEQvxxQabwLQMqWMg1qGu",
+            "uri": "spotify:track:2TEQvxxQabwLQMqWMg1qGu"
+        },
+*/
