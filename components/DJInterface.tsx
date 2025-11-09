@@ -919,4 +919,18 @@ Hardware banned section
             "id": "2TEQvxxQabwLQMqWMg1qGu",
             "uri": "spotify:track:2TEQvxxQabwLQMqWMg1qGu"
         },
+
+
+
+    
+        {
+            "name": "What I Want (feat. Tate McRae)",
+            "artist": "Morgan Wallen, Tate McRae",
+            "album": "I\u2019m The Problem",
+            "popularity": 86,
+            "id": "04emojnbYkrRmv5qtJcgVP",
+            "uri": "spotify:track:04emojnbYkrRmv5qtJcgVP"
+        }
+
+        
 */
