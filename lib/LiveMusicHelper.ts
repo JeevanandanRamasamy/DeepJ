@@ -109,9 +109,11 @@ export class LiveMusicHelper extends EventTarget {
     }
 
     public readonly setWeightedPrompts = throttle(async (prompts: Map<string, Prompt>) => {
+        console.log('[LiveMusicHelper] 🎼 setWeightedPrompts called with:', Array.from(prompts.values()).map(p => p.text));
         this.prompts = prompts;
 
         if (this.activePrompts.length === 0) {
+            console.log('[LiveMusicHelper] ⚠️ No active prompts, pausing');
             this.dispatchEvent(new CustomEvent('error', { detail: 'There needs to be one active prompt to play.' }));
             this.pause();
             return;
@@ -119,16 +121,22 @@ export class LiveMusicHelper extends EventTarget {
 
         // store the prompts to set later if we haven't connected yet
         // there should be a user interaction before calling setWeightedPrompts
-        if (!this.session) return;
+        if (!this.session) {
+            console.log('[LiveMusicHelper] ⏸️ No session yet, prompts will be set when play() is called');
+            return;
+        }
 
         const weightedPrompts = this.activePrompts.map((p) => {
             return { text: p.text, weight: p.weight };
         });
+        console.log('[LiveMusicHelper] 📤 Sending weighted prompts to Lyria:', weightedPrompts);
         try {
             await this.session.setWeightedPrompts({
                 weightedPrompts,
             });
+            console.log('[LiveMusicHelper] ✅ Prompts successfully sent to Lyria session');
         } catch (e: any) {
+            console.error('[LiveMusicHelper] ❌ Error setting prompts:', e);
             this.dispatchEvent(new CustomEvent('error', { detail: e.message }));
             this.pause();
         }
