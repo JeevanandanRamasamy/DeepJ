@@ -324,7 +324,11 @@ const DJInterface: React.FC = () => {
       setStatus("AI active • analyzing room mood");
     } catch (error) {
       console.error(error);
-      setStatus("could not start camera");
+      if ((error as any).name === "NotAllowedError") {
+        setStatus("Camera/microphone access denied. Please enable permissions.");
+      } else {
+        setStatus("Could not start camera: " + (error as any).message);
+      }
     }
   };
 
