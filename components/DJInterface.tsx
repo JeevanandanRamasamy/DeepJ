@@ -164,6 +164,16 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     isEmpty() {
       return this.length === 0;
     }
+
+    removeAllAfter() {
+      if (this.cursor) {
+        while (this.cursor.next) {
+          this.cursor.next = this.cursor.next.next;
+          this.length--;
+        }
+        this.tail = this.cursor;
+      }
+    }
   }
 
   // functions to handle the music playing on the button and the html listener
@@ -381,10 +391,19 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     if (!useLiveMusic) {
       console.log("[DJInterface] ℹ️ Not in live music mode, using regular queue logic");
 
+      /*
+      OLD BEHAVIOR: JUST ADDS TO QUEUE
       // Original track queue logic for non-live music mode
       queueRef.current.enqueue(suggestion.trackFilename);
 
       // update nextTrack UI based on queue's next item
+      const nextFilename = queueRef.current.peekNext() ?? suggestion.trackFilename;
+      setNextTrack(getSongDataForCard(nextFilename));*/
+
+      // NEW BEHAVIOR: switch to suggested track after this song
+      queueRef.current.removeAllAfter();
+      queueRef.current.enqueue(suggestion.trackFilename);
+
       const nextFilename = queueRef.current.peekNext() ?? suggestion.trackFilename;
       setNextTrack(getSongDataForCard(nextFilename));
 
