@@ -490,6 +490,21 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     };
   }
 
+  const getRandomSongFromGenre = (genre: string, exclude: string) => {
+    const genreSongList = musicData[genre];
+    if (!genreSongList || genreSongList.length === 0) {
+      console.warn(`No songs found for genre: ${genre}`);
+      return null;
+    }
+    while (true) {
+      const randomIndex = Math.floor(Math.random() * genreSongList.length);
+      const song = genreSongList[randomIndex];
+      if (song.name !== exclude) {
+        return `${genre}/${song.name}.mp3`;
+      }
+    }
+  };
+
   const goNext = () => {
     // Remember if we were playing before changing tracks
     const wasPlaying = isSessionActive;
@@ -502,19 +517,32 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     const next = queueRef.current.getNext();
     if (next) {
       setCurrentTrack(getSongDataForCard(next));
-      // {{
-      //   name: next.replace(".mp3", "").replace(/_/g, " "),
-      //   artist: "AI DJ",
-      // }}
       setStatus(wasPlaying ? "loading next track..." : "next track");
       const upcoming = queueRef.current.peekNext();
-      setNextTrack(upcoming ? getSongDataForCard(upcoming) : getSongDataForCard(null));
 
-      // ACTUALLY SWITCH TO THE NEXT TRACK
+      if (upcoming) {
+        setNextTrack(getSongDataForCard(upcoming));
+      } else {
+        // If no upcoming track, try to enqueue a new one from same genre
+        const genre = next.split("/")[0];
+        const currentSongName = next.split("/")[1].replace(".mp3", "");
+        const newSong = getRandomSongFromGenre(genre, currentSongName);
+        if (newSong) {
+          queueRef.current.enqueue(newSong);
+          console.log(`[DJInterface] Enqueued new track from genre '${genre}': ${newSong}`);
+          setNextTrack(getSongDataForCard(newSong));
+        } else {
+          console.warn(`[DJInterface] Could not find new track to enqueue from genre: ${genre}`);
+          setNextTrack(getSongDataForCard(null));
+        }
+      }
+      //setNextTrack(upcoming ? getSongDataForCard(upcoming) : getSongDataForCard(null));
+
       // Set auto-play flag if we were playing
       shouldAutoPlayAfterSrcChange.current = wasPlaying;
+
+      // ACTUALLY SWITCH TO THE NEXT TRACK
       setAudioSrc(baseURL + next);
-      //setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Soda Pop.mp3");
 
     } else {
       // TODO: ADD TO QUEUE FROM SAME GENRE AS LAST ONE
@@ -551,15 +579,22 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       // actually switch to this track
       shouldAutoPlayAfterSrcChange.current = wasPlaying;
       setAudioSrc(baseURL + prev);
-      //setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
+
     } else {
-      // TODO: JUST RESTART THE SONG BRUH
+      // Just restart the current song
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        setCurrentTime(0);
+        if (wasPlaying) {
+          audioRef.current.play();
+        }
+      }
       setStatus("start of queue");
       // If at start of queue, stop playback
-      if (isSessionActive) {
-        setIsSessionActive(false);
-        setStatus("start of queue • paused");
-      }
+      // if (isSessionActive) {
+      //   setIsSessionActive(false);
+      //   setStatus("start of queue • paused");
+      // }
       return;
     }
   };
