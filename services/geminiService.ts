@@ -86,9 +86,7 @@ const throttledSongSelection = throttle(
         apiKey: string,
         onSuggestion: (suggestion: MusicSuggestion) => void,
         currentSession: any,
-        fc: any,
-        lastGenre: string | null,
-        updateLastGenre: (genre: string) => void
+        fc: any
     ) => {
         console.log(`[GeminiService] 🎵 Throttled song selection executing for mood: ${mood}`);
 
@@ -99,14 +97,6 @@ const throttledSongSelection = throttle(
             const genre = genres[Math.floor(Math.random() * genres.length)];
             console.log(`[GeminiService] 🎯 Chosen genre for track selection: ${genre}`);
 
-            // Check if genre has changed
-            if (lastGenre === genre) {
-                console.log(`[GeminiService] 🎸 Genre unchanged (still ${genre}), but updating prompts anyway for consistency`);
-            } else {
-                console.log(`[GeminiService] 🎸 Genre changed: ${lastGenre || 'none'} → ${genre}`);
-                updateLastGenre(genre);
-            }
-
             const track = musicData[genre][Math.floor(Math.random() * musicData[genre].length)]["name"];
             const trackFilename = `${genre}/${track}.mp3`;
 
@@ -114,8 +104,7 @@ const throttledSongSelection = throttle(
             const suggestion: MusicSuggestion = {
                 mood: mood as MusicSuggestion['mood'],
                 energyLevel,
-                trackFilename,
-                genre // Include genre information for Lyria prompt generation
+                trackFilename
             };
 
             console.log("[GeminiService] 🎵 Song selected:", suggestion);
@@ -197,9 +186,8 @@ export async function connectToGemini(
     const MAX_RECONNECT_ATTEMPTS = 5;
     const RECONNECT_DELAY_MS = 2000;
 
-    // Track last detected mood AND genre to detect changes
+    // Track last detected mood to detect changes
     let lastMood: string | null = null;
-    let lastGenre: string | null = null;
 
     // Function to create a new Live API session
     const createSession = async (): Promise<any> => {
@@ -229,21 +217,16 @@ export async function connectToGemini(
                                 console.log(`[GeminiService] Detected - Mood: ${mood}, Energy: ${energyLevel}, Confidence: ${confidence}`);
 
                                 // Check if mood has changed since last detection
-                                // Note: We still need to select genre even if mood is the same, 
-                                // because different energy levels or random selection might pick a different genre
                                 if (lastMood === mood) {
-                                    console.log(`[GeminiService] 🔄 Mood unchanged (still ${mood}), but will check if genre changes`);
+                                    console.log(`[GeminiService] 🔄 Mood unchanged (still ${mood}), but will update prompts`);
                                 }
 
-                                // Always proceed with genre selection to allow genre changes
-                                // even when mood stays the same
+                                // Always proceed with song selection to allow updates
                                 console.log(`[GeminiService] 🎭 Processing mood: ${lastMood || 'none'} → ${mood}`);
                                 lastMood = mood;
 
-                                // Stage 2: Select genres and update if different (throttled to once per 30 seconds)
-                                throttledSongSelection(mood, energyLevel, apiKey, onSuggestion, currentSession, fc, lastGenre, (newGenre: string) => {
-                                    lastGenre = newGenre;
-                                });
+                                // Stage 2: Select genres for track (throttled to once per 30 seconds)
+                                throttledSongSelection(mood, energyLevel, apiKey, onSuggestion, currentSession, fc);
                             }
                         }
                     }

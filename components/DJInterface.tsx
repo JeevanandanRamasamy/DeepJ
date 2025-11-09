@@ -74,70 +74,6 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     ],
   };
 
-  // Genre-specific prompts for more targeted music generation
-  const GENRE_PROMPTS: Record<string, Prompt[]> = {
-    rock: [
-      { promptId: "rock-1", text: "Distorted Guitar", weight: 1, color: "#ff4444" },
-      { promptId: "rock-2", text: "Driving Drums", weight: 0.9, color: "#ff6666" },
-      { promptId: "rock-3", text: "Power Chords", weight: 0.8, color: "#ff8888" },
-      { promptId: "rock-4", text: "Anthemic", weight: 0.7, color: "#ffaaaa" },
-    ],
-    pop: [
-      { promptId: "pop-1", text: "Catchy Melody", weight: 1, color: "#ff25f6" },
-      { promptId: "pop-2", text: "Upbeat", weight: 0.9, color: "#ff77f9" },
-      { promptId: "pop-3", text: "Synth Pop", weight: 0.8, color: "#ffa9fc" },
-      { promptId: "pop-4", text: "Bright Vocals", weight: 0.7, color: "#ffdbfe" },
-    ],
-    rap: [
-      { promptId: "rap-1", text: "Hard Hitting Beats", weight: 1, color: "#ffdd28" },
-      { promptId: "rap-2", text: "808 Bass", weight: 0.95, color: "#ffe866" },
-      { promptId: "rap-3", text: "Hip Hop Drums", weight: 0.85, color: "#fff099" },
-      { promptId: "rap-4", text: "Trap Hi-Hats", weight: 0.75, color: "#fff7cc" },
-    ],
-    "indie pop": [
-      { promptId: "indiepop-1", text: "Dream Pop", weight: 1, color: "#9900ff" },
-      { promptId: "indiepop-2", text: "Jangly Guitars", weight: 0.85, color: "#bb44ff" },
-      { promptId: "indiepop-3", text: "Ethereal Vocals", weight: 0.75, color: "#cc77ff" },
-      { promptId: "indiepop-4", text: "Atmospheric", weight: 0.65, color: "#ddaaff" },
-    ],
-    classical: [
-      { promptId: "classical-1", text: "Orchestral", weight: 1, color: "#3dffab" },
-      { promptId: "classical-2", text: "Piano Solo", weight: 0.85, color: "#6fffbd" },
-      { promptId: "classical-3", text: "String Quartet", weight: 0.8, color: "#a1ffce" },
-      { promptId: "classical-4", text: "Baroque", weight: 0.7, color: "#d3ffe0" },
-    ],
-    country: [
-      { promptId: "country-1", text: "Acoustic Guitar", weight: 1, color: "#d8ff3e" },
-      { promptId: "country-2", text: "Banjo", weight: 0.8, color: "#e1ff71" },
-      { promptId: "country-3", text: "Slide Guitar", weight: 0.75, color: "#eaffa4" },
-      { promptId: "country-4", text: "Folk Storytelling", weight: 0.7, color: "#f3ffd7" },
-    ],
-    jazz: [
-      { promptId: "jazz-1", text: "Smooth Jazz", weight: 1, color: "#2af6de" },
-      { promptId: "jazz-2", text: "Saxophone", weight: 0.9, color: "#5df8e6" },
-      { promptId: "jazz-3", text: "Walking Bass", weight: 0.8, color: "#90faee" },
-      { promptId: "jazz-4", text: "Swing", weight: 0.75, color: "#c3fcf6" },
-    ],
-    "indie rock": [
-      { promptId: "indierock-1", text: "Alt Rock", weight: 1, color: "#5200ff" },
-      { promptId: "indierock-2", text: "Reverb Guitar", weight: 0.85, color: "#7744ff" },
-      { promptId: "indierock-3", text: "Post Rock", weight: 0.75, color: "#9977ff" },
-      { promptId: "indierock-4", text: "Lo-Fi Production", weight: 0.7, color: "#bbaaff" },
-    ],
-    metal: [
-      { promptId: "metal-1", text: "Heavy Riffs", weight: 1, color: "#ff0000" },
-      { promptId: "metal-2", text: "Double Bass Drums", weight: 0.95, color: "#ff3333" },
-      { promptId: "metal-3", text: "Growling Bass", weight: 0.85, color: "#ff6666" },
-      { promptId: "metal-4", text: "Shredding Guitar", weight: 0.8, color: "#ff9999" },
-    ],
-    electronic: [
-      { promptId: "electronic-1", text: "Synth Arpeggios", weight: 1, color: "#00ffff" },
-      { promptId: "electronic-2", text: "Four on the Floor", weight: 0.9, color: "#44ffff" },
-      { promptId: "electronic-3", text: "Techno Bass", weight: 0.85, color: "#88ffff" },
-      { promptId: "electronic-4", text: "Ambient Pads", weight: 0.75, color: "#bbffff" },
-    ],
-  };
-
   // Doubly linked list based queue implementation
   class Node<T> {
     value: T;
@@ -395,16 +331,10 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     // Do this regardless of whether live music is currently active, so prompts are ready when user switches
     if (liveMusicHelperRef.current) {
       console.log("[DJInterface] ✅ Updating LiveMusicHelper prompts");
-      // Prioritize genre-specific prompts if available, otherwise fall back to mood prompts
-      let selectedPrompts: Prompt[];
 
-      if (suggestion.genre && GENRE_PROMPTS[suggestion.genre]) {
-        console.log(`[DJInterface] 🎸 Using genre-specific prompts for: ${suggestion.genre}`);
-        selectedPrompts = GENRE_PROMPTS[suggestion.genre];
-      } else {
-        console.log(`[DJInterface] 🎭 Using mood-based prompts for: ${suggestion.mood}`);
-        selectedPrompts = MOOD_PROMPTS[suggestion.mood] || MOOD_PROMPTS.chilling;
-      }
+      // Use mood-based prompts
+      console.log(`[DJInterface] 🎭 Using mood-based prompts for: ${suggestion.mood}`);
+      const selectedPrompts = MOOD_PROMPTS[suggestion.mood] || MOOD_PROMPTS.chilling;
 
       console.log(`[DJInterface] 🎼 Selected prompts:`, selectedPrompts.map(p => p.text));
 
@@ -427,10 +357,10 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       if (useLiveMusic) {
         console.log("[DJInterface] 🎵 Live music mode active, updating UI");
         setCurrentTrack({
-          name: `Live AI - ${suggestion.genre || suggestion.mood}`,
+          name: `Live AI - ${suggestion.mood}`,
           artist: `Energy: ${suggestion.energyLevel}/10`
         });
-        setStatus(`AI music adapting to ${suggestion.genre || suggestion.mood} ${suggestion.genre ? 'genre' : 'mood'}`);
+        setStatus(`AI music adapting to ${suggestion.mood} mood`);
       } else {
         console.log("[DJInterface] ℹ️ Prompts updated but live music not active yet");
       }
@@ -810,8 +740,8 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
               onClick={toggleLiveMusicMode}
               whileTap={{ scale: 0.9 }}
               className={`px-3 py-1.5 rounded-full text-[10px] font-semibold backdrop-blur-md transition-all ${useLiveMusic
-                  ? "bg-gradient-to-r from-cyan-400/80 to-blue-500/80 text-white border border-cyan-300/50"
-                  : "bg-white/10 hover:bg-white/20 text-white/70 border border-white/20"
+                ? "bg-gradient-to-r from-cyan-400/80 to-blue-500/80 text-white border border-cyan-300/50"
+                : "bg-white/10 hover:bg-white/20 text-white/70 border border-white/20"
                 }`}
             >
               {useLiveMusic ? "🎼 Live AI" : "💿 Tracks"}
