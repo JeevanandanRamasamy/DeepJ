@@ -23,25 +23,30 @@
 
 import React, { useState } from "react";
 import DJInterface from "./components/DJInterface";
+import EndScreen from "./components/EndSession";
 import djBg from "./assets/dj-image.jpg"
 
-
 const App: React.FC = () => {
-  const [showApp, setShowApp] = useState(false);
+  const [screen, setScreen] = useState<"intro" | "dj" | "end">("intro");
 
   return (
     <>
-      {showApp ? (
-        <DJInterface />
-      ) : (
-        <IntroScreen onEnter={() => setShowApp(true)} bgImage={djBg} />
+      {screen === "intro" && (
+        <IntroScreen onEnter={() => setScreen("dj")} bgImage={djBg} />
+      )}
+
+      {screen === "dj" && (
+        <DJInterface onEndSession={() => setScreen("end")} />
+      )}
+
+      {screen === "end" && (
+        <EndScreen onRestart={() => setScreen("intro")} />
       )}
     </>
   );
 };
 
 export default App;
-
 
 const IntroScreen: React.FC<{ onEnter: () => void; bgImage: string }> = ({
   onEnter,
@@ -87,3 +92,4 @@ const IntroScreen: React.FC<{ onEnter: () => void; bgImage: string }> = ({
     </div>
   );
 };
+
