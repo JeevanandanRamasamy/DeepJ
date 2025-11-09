@@ -379,31 +379,25 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
       // update nextTrack UI based on queue's next item
       const nextFilename = queueRef.current.peekNext() ?? suggestion.trackFilename;
-      setNextTrack({
-        name: nextFilename.replace(".mp3", "").replace(/_/g, " "),
-        artist: `${suggestion.mood} • Energy: ${suggestion.energyLevel}/10`,
-      });
+      setNextTrack(getSongDataForCard(nextFilename));
 
-      if (isSessionActive) {
-        // simulate transition to suggested track after small delay
-        setTimeout(() => {
-          const next = queueRef.current.getNext() ?? suggestion.trackFilename;
-          setCurrentTrack({
-            name: next.replace(".mp3", "").replace(/_/g, " "),
-            artist: `${suggestion.mood} • Energy: ${suggestion.energyLevel}/10`,
-          });
-          setStatus(`playing • ${suggestion.mood} mood detected`);
-          // update nextTrack preview
-          const upcoming = queueRef.current.peekNext();
-          setNextTrack(
-            upcoming
-              ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" }
-              : null
-          );
-        }, 1000);
-      } else {
-        setStatus(`suggestion ready • ${suggestion.mood} detected`);
-      }
+      // if (isSessionActive) {
+      //   // simulate transition to suggested track after small delay
+      //   setTimeout(() => {
+      //     const next = queueRef.current.getNext() ?? suggestion.trackFilename;
+      //     setCurrentTrack(getSongDataForCard(next));
+      //     setStatus(`playing • ${suggestion.mood} mood detected`);
+      //     // update nextTrack preview
+      //     const upcoming = queueRef.current.peekNext();
+      //     setNextTrack(
+      //       upcoming
+      //         ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" }
+      //         : null
+      //     );
+      //   }, 1000);
+      // } else {
+      //   setStatus(`suggestion ready • ${suggestion.mood} detected`);
+      // }
     }
   };
 
@@ -512,9 +506,9 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       //   name: next.replace(".mp3", "").replace(/_/g, " "),
       //   artist: "AI DJ",
       // }}
+      setStatus(wasPlaying ? "loading next track..." : "next track");
       const upcoming = queueRef.current.peekNext();
       setNextTrack(upcoming ? getSongDataForCard(upcoming) : getSongDataForCard(null));
-      setStatus(wasPlaying ? "loading next track..." : "next track");
 
       // ACTUALLY SWITCH TO THE NEXT TRACK
       // Set auto-play flag if we were playing
