@@ -234,13 +234,14 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
   const initialTracks = ["pop/Golden.mp3", "pop/Soda Pop.mp3", "pop/Your Idol.mp3", "pop/Opalite.mp3"];
   const queueRef = useRef<DoublyLinkedQueue<string>>(new DoublyLinkedQueue());
 
-  // populate queue on mount
+  // Initialize everything on mount - queue, camera, and LiveMusicHelper
   useEffect(() => {
+    // 1. Populate queue
     const q = queueRef.current;
     initialTracks.forEach((t) => q.enqueue(t));
     // TODO: with base of golden, could choose 2 songs randomly to queue after that
 
-    // set initial UI from queue
+    // 2. Set initial UI from queue
     const cur = q.peekCurrent();
     const nxt = q.peekNext();
     if (cur) {
@@ -250,7 +251,66 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       setNextTrack(getSongDataForCard(nxt));
     }
 
+    // 3. Initialize LiveMusicHelper
+    const apiKey = "AIzaSyCHBCsfQfN009fzUATYWuEw0rW_cBli2LI"; // WE KNOW THIS IS CURSED BUT IT'S A DEMO
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY not configured");
+    } else {
+      try {
+        const ai = new GoogleGenAI({
+          apiKey: apiKey,
+          apiVersion: 'v1alpha'
+        });
+        const liveMusicHelper = new LiveMusicHelper(ai, 'lyria-realtime-exp');
+        liveMusicHelperRef.current = liveMusicHelper;
+
+        // Set up event listeners for LiveMusicHelper
+        liveMusicHelper.addEventListener('playback-state-changed', ((e: Event) => {
+          const customEvent = e as CustomEvent<PlaybackState>;
+          setPlaybackState(customEvent.detail);
+
+          // Update status based on playback state
+          const stateMessages: Record<PlaybackState, string> = {
+            playing: 'live AI music playing',
+            loading: 'generating music...',
+            paused: 'paused',
+            stopped: 'stopped'
+          };
+          if (useLiveMusic) {
+            setStatus(stateMessages[customEvent.detail]);
+          }
+        }) as EventListener);
+
+        liveMusicHelper.addEventListener('filtered-prompt', ((e: Event) => {
+          const customEvent = e as CustomEvent<LiveMusicFilteredPrompt>;
+          const filteredPrompt = customEvent.detail;
+          setFilteredPrompts(prev => new Set([...prev, filteredPrompt.text!]));
+          setStatus(`⚠️ Prompt filtered: ${filteredPrompt.filteredReason}`);
+        }) as EventListener);
+
+        liveMusicHelper.addEventListener('error', ((e: Event) => {
+          const customEvent = e as CustomEvent<string>;
+          setStatus(`Error: ${customEvent.detail}`);
+          console.error('LiveMusicHelper error:', customEvent.detail);
+        }) as EventListener);
+
+        // Initialize with default prompts
+        const defaultPrompts = MOOD_PROMPTS.chilling;
+        const promptsMap = new Map<string, Prompt>();
+        defaultPrompts.forEach(p => promptsMap.set(p.promptId, p));
+        liveMusicHelper.setWeightedPrompts(promptsMap);
+        setActivePrompts(defaultPrompts);
+
+      } catch (error) {
+        console.error('Failed to initialize LiveMusicHelper:', error);
+        setStatus('Failed to initialize AI music system');
+      }
+    }
+
+    // 4. Start camera
     startCamera();
+
+    // Cleanup function
     return () => {
       geminiSessionRef.current?.close();
       streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -258,69 +318,6 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Initialize LiveMusicHelper
-  useEffect(() => {
-    const apiKey = "AIzaSyCHBCsfQfN009fzUATYWuEw0rW_cBli2LI"; // WE KNOW THIS IS CURSED BUT IT'S A DEMO
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY not configured");
-      return;
-    }
-
-    try {
-      const ai = new GoogleGenAI({
-        apiKey: apiKey,
-        apiVersion: 'v1alpha'
-      });
-      const liveMusicHelper = new LiveMusicHelper(ai, 'lyria-realtime-exp');
-      liveMusicHelperRef.current = liveMusicHelper;
-
-      // Set up event listeners for LiveMusicHelper
-      liveMusicHelper.addEventListener('playback-state-changed', ((e: Event) => {
-        const customEvent = e as CustomEvent<PlaybackState>;
-        setPlaybackState(customEvent.detail);
-
-        // Update status based on playback state
-        const stateMessages: Record<PlaybackState, string> = {
-          playing: 'live AI music playing',
-          loading: 'generating music...',
-          paused: 'paused',
-          stopped: 'stopped'
-        };
-        if (useLiveMusic) {
-          setStatus(stateMessages[customEvent.detail]);
-        }
-      }) as EventListener);
-
-      liveMusicHelper.addEventListener('filtered-prompt', ((e: Event) => {
-        const customEvent = e as CustomEvent<LiveMusicFilteredPrompt>;
-        const filteredPrompt = customEvent.detail;
-        setFilteredPrompts(prev => new Set([...prev, filteredPrompt.text!]));
-        setStatus(`⚠️ Prompt filtered: ${filteredPrompt.filteredReason}`);
-      }) as EventListener);
-
-      liveMusicHelper.addEventListener('error', ((e: Event) => {
-        const customEvent = e as CustomEvent<string>;
-        setStatus(`Error: ${customEvent.detail}`);
-        console.error('LiveMusicHelper error:', customEvent.detail);
-      }) as EventListener);
-
-      // Initialize with default prompts
-      const defaultPrompts = MOOD_PROMPTS.chilling;
-      const promptsMap = new Map<string, Prompt>();
-      defaultPrompts.forEach(p => promptsMap.set(p.promptId, p));
-      liveMusicHelper.setWeightedPrompts(promptsMap);
-      setActivePrompts(defaultPrompts);
-
-    } catch (error) {
-      console.error('Failed to initialize LiveMusicHelper:', error);
-      setStatus('Failed to initialize AI music system');
-    }
-
-    return () => {
-      liveMusicHelperRef.current?.stop();
-    };
-  }, [useLiveMusic]);
 
   const handleSuggestion = (suggestion: MusicSuggestion) => {
     setDetectedMood(suggestion.mood);
