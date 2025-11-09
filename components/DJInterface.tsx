@@ -24,7 +24,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     artist: "AI DJ",
   });
   const [cameraOn, setCameraOn] = useState(false);
-  const [detectedMood, setDetectedMood] = useState<string | null>(null);
+  const [detectedMood, setDetectedMood] = useState<string | null>("Scanning...");
   const [energyLevel, setEnergyLevel] = useState<number | null>(null);
   const [activePrompts, setActivePrompts] = useState<Prompt[]>([]);
   const [filteredPrompts, setFilteredPrompts] = useState<Set<string>>(new Set());
@@ -692,9 +692,10 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
           {nextTrack ? nextTrack.name : "TBD"}
         </p>
         <p className="text-[10px] text-white/35 mt-1">{nextTrack?.artist || "AI DJ"}</p>
-        <p className="text-xs text-purple-300/80 uppercase mb-1">Detected Mood</p>
+        <hr className="my-2.5 border-white/10" />
+        <p className="text-xs text-purple-300/80 uppercase mb-1">Detected Mood:</p>
         <p className="text-lg font-bold capitalize">{detectedMood}</p>
-        <p className="text-[11px] text-purple-200/80 mt-1 text-right">{energyLevel}/10</p>
+        <p className="text-[11px] text-purple-200/80 mt-1 text-right">Energy Level: {energyLevel}/10</p>
       </div>
       {/* TOP-RIGHT */}
 
