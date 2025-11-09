@@ -506,6 +506,12 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
   };
 
   const goNext = () => {
+    // If in live music mode, don't navigate tracks
+    if (useLiveMusic) {
+      setStatus("Track navigation disabled in Live AI mode");
+      return;
+    }
+
     // Remember if we were playing before changing tracks
     const wasPlaying = isSessionActive;
 
@@ -561,6 +567,12 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
   goNextRef.current = goNext;
 
   const goPrev = () => {
+    // If in live music mode, don't navigate tracks
+    if (useLiveMusic) {
+      setStatus("Track navigation disabled in Live AI mode");
+      return;
+    }
+
     // Remember if we were playing before changing tracks
     const wasPlaying = isSessionActive;
 
@@ -694,7 +706,6 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       )}
 
       {/* BOTTOM BAR */}
-      {/* BOTTOM BAR */}
       <motion.div
         className="absolute bottom-4 inset-x-0 flex justify-center"
         initial={{ opacity: 0, y: 16 }}
@@ -730,10 +741,13 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
               onEnded={handleEnded}
             />
 
-            {/* prev – always show */}
+            {/* prev – disable in live music mode */}
             <button
               onClick={goPrev}
-              className="w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center hover:border-white/40 transition"
+              disabled={useLiveMusic}
+              className={`w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center transition ${
+                useLiveMusic ? 'opacity-30 cursor-not-allowed' : 'hover:border-white/40'
+              }`}
             >
               ‹
             </button>
@@ -756,10 +770,13 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
               </button>
             </div>
 
-            {/* next – always show */}
+            {/* next – disable in live music mode */}
             <button
               onClick={goNext}
-              className="w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center hover:border-white/40 transition"
+              disabled={useLiveMusic}
+              className={`w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center transition ${
+                useLiveMusic ? 'opacity-30 cursor-not-allowed' : 'hover:border-white/40'
+              }`}
             >
               ›
             </button>
