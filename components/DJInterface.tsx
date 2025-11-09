@@ -655,13 +655,12 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       <div className="absolute top-4 left-4 bg-[#0d1422]/95 border border-white/5 rounded-3xl px-6 py-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] w-64">
         <p className="text-[10px] uppercase tracking-[0.35em] text-white/40 mb-2 flex items-center gap-2">
           <span className="text-base">{useLiveMusic ? "🎼" : "🎵"}</span>
-          {useLiveMusic ? "ai live music" : "now playing"}
+          {useLiveMusic ? "AI live music" : "now playing"}
         </p>
-        <p className="text-2xl font-semibold leading-tight">
-          {currentTrack ? currentTrack.name : "AI picked track"}
+        <p className="text-2xl font-semibold leading-tight">{useLiveMusic ? `Live AI - ${detectedMood}` : (currentTrack ? currentTrack.name : "AI picked track")}
         </p>
         <p className="text-[11px] text-white/50 mt-2">
-          {currentTrack?.artist || "AI DJ"}
+          {useLiveMusic ? "Was playing: " + (currentTrack ? currentTrack.name : "AI picked track") : (currentTrack?.artist || "AI DJ")}
         </p>
         {useLiveMusic && (
           <div className="mt-3 text-[9px] text-cyan-400/70">
