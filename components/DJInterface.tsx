@@ -546,10 +546,6 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     }
   };
 
-  useEffect(() => {
-    startCamera();
-  }, []);
-
   return (
     <div className="relative w-screen h-screen bg-[#060b16] text-white overflow-hidden">
       {/* CAMERA */}
