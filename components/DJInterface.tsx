@@ -7,6 +7,7 @@ import VideoProgressBar from "./ProgressBar";
 import { LiveMusicHelper } from "@/lib/LiveMusicHelper";
 import MyAudioPlayer from "./audioPlayer";
 import { GoogleGenAI, LiveMusicFilteredPrompt } from "@google/genai";
+import musicData from "@/music/music_data.json";
 
 const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) => {
   const [status, setStatus] = useState("ready");
@@ -265,14 +266,15 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
   // Initialize LiveMusicHelper
   useEffect(() => {
-    if (!process.env.API_KEY) {
+    const apiKey = "AIzaSyBBYn1cDAkLx_OPgDHj4Yeka9r6A6pY1s0"; // WE KNOW THIS IS CURSED BUT IT'S A DEMO
+    if (!apiKey) {
       console.error("GEMINI_API_KEY not configured");
       return;
     }
 
     try {
       const ai = new GoogleGenAI({
-        apiKey: process.env.API_KEY,
+        apiKey: apiKey,
         apiVersion: 'v1alpha'
       });
       const liveMusicHelper = new LiveMusicHelper(ai, 'lyria-realtime-exp');
