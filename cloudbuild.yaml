@@ -46,6 +46,8 @@ steps:
       - '10'
       - '--set-env-vars'
       - 'GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,VERTEX_AI_LOCATION=us-central1,GEMINI_MODEL=gemini-1.5-pro-latest,FLASK_ENV=production'
+      - '--set-secrets'
+      - 'GEMINI_API_KEY=GEMINI_API_KEY:latest'
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
