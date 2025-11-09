@@ -78,7 +78,7 @@ const IntroScreen: React.FC<{ onEnter: () => void; bgImage: string }> = ({
           DeepJ
         </h1>
         <p className="text-sm md:text-base text-white/80 max-w-lg mb-8 leading-relaxed">
-          Welcome to <span className="text-rose-400 font-semibold">DeepJ </span>
+          Welcome to <span className="text-rose-400 font-semibold">DeepJ</span>, 
           an AI-powered DJ that reads the room’s energy through your camera and
           curates the perfect vibe. Perfect for parties, study jams, or chill sessions.
         </p>
