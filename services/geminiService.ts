@@ -89,7 +89,7 @@ const throttledSongSelection = throttle(
         fc: any
     ) => {
         console.log(`[GeminiService] 🎵 Throttled song selection executing for mood: ${mood}`);
-        
+
         try {
             const genres = await selectGenresForMood(mood, energyLevel, apiKey);
             console.log(`[GeminiService] ✓ Selected genres: ${genres}`);
@@ -169,7 +169,7 @@ export async function connectToGemini(
 
     const apiKey = "AIzaSyBBYn1cDAkLx_OPgDHj4Yeka9r6A6pY1s0"; // WE KNOW THIS IS CURSED BUT IT'S A DEMO
     if (!apiKey) {
-      console.error("[GeminiService] VITE_GEMINI_API_KEY environment variable not set in the client bundle");
+        console.error("[GeminiService] VITE_GEMINI_API_KEY environment variable not set in the client bundle");
     }
     const ai = new GoogleGenAI({ apiKey });
 
