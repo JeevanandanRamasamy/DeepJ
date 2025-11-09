@@ -266,7 +266,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
   // Initialize LiveMusicHelper
   useEffect(() => {
-    const apiKey = "AIzaSyBBYn1cDAkLx_OPgDHj4Yeka9r6A6pY1s0"; // WE KNOW THIS IS CURSED BUT IT'S A DEMO
+    const apiKey = "AIzaSyCHBCsfQfN009fzUATYWuEw0rW_cBli2LI"; // WE KNOW THIS IS CURSED BUT IT'S A DEMO
     if (!apiKey) {
       console.error("GEMINI_API_KEY not configured");
       return;
