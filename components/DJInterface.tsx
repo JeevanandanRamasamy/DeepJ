@@ -7,6 +7,8 @@ import VideoProgressBar from "./ProgressBar";
 import { LiveMusicHelper } from "@/lib/LiveMusicHelper";
 import MyAudioPlayer from "./audioPlayer";
 import { GoogleGenAI, LiveMusicFilteredPrompt } from "@google/genai";
+import { get } from "http";
+import musicData from '../music/music_data.json';
 
 const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) => {
   const [status, setStatus] = useState("ready");
@@ -229,7 +231,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
   // initial tracklist to seed the queue
   const baseURL = "https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/";
-  const initialTracks = ["pop/Golden.mp3", "pop/Soda Pop.mp3"];
+  const initialTracks = ["pop/Golden.mp3", "pop/Soda Pop.mp3", "pop/Your Idol.mp3", "pop/Opalite.mp3"];
   const queueRef = useRef<DoublyLinkedQueue<string>>(new DoublyLinkedQueue());
 
   // populate queue on mount
@@ -242,16 +244,10 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     const cur = q.peekCurrent();
     const nxt = q.peekNext();
     if (cur) {
-      setCurrentTrack({
-        name: cur.split("/").pop()?.replace(".mp3", "").replace(/_/g, " ") || cur.replace(".mp3", "").replace(/_/g, " "),
-        artist: "HUNTR/X",
-      });
+      setCurrentTrack(getSongDataForCard(cur));
     }
     if (nxt) {
-      setNextTrack({
-        name: nxt.split("/").pop()?.replace(".mp3", "").replace(/_/g, " ") || nxt.replace(".mp3", "").replace(/_/g, " "),
-        artist: "HUNTR/X",
-      });
+      setNextTrack(getSongDataForCard(nxt));
     }
 
     startCamera();
@@ -452,7 +448,30 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
     setUseLiveMusic(!useLiveMusic);
     setStatus(!useLiveMusic ? "Live AI music mode enabled" : "Track playback mode enabled");
-  }; const goNext = () => {
+  }; 
+
+  const getSongDataForCard = (filename: string) => {
+    if (filename === null) return {
+      songName: "TBD",
+      artistName: "AI DJ",
+    };
+
+    const genre = filename.split("/")[0];
+    const songName = filename.split("/")[1].replace(".mp3", "").replace(/_/g, " ");
+    const genreSongList = musicData[genre];
+    const foundSong = genreSongList.find(song => song.name === songName);
+    const artistName = foundSong ? foundSong.artist : "Author not found";
+
+    //const artistName = musicData[genre]?.[songName]?.author || "Author not found";
+    console.log("Fetched song data:", { songName, artistName });
+    console.log("Used Song Genre:", genre);
+    return {
+      name: songName,
+      artist: artistName,
+    };
+  }
+  
+  const goNext = () => {
     // Remember if we were playing before changing tracks
     const wasPlaying = isSessionActive;
 
@@ -463,14 +482,23 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
     const next = queueRef.current.getNext();
     if (next) {
-      setCurrentTrack({
-        name: next.replace(".mp3", "").replace(/_/g, " "),
-        artist: "AI DJ",
-      });
+      setCurrentTrack(getSongDataForCard(next));
+      // {{
+      //   name: next.replace(".mp3", "").replace(/_/g, " "),
+      //   artist: "AI DJ",
+      // }}
       const upcoming = queueRef.current.peekNext();
-      setNextTrack(upcoming ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" } : null);
+      setNextTrack(upcoming ? getSongDataForCard(upcoming) : getSongDataForCard(null));
       setStatus(wasPlaying ? "loading next track..." : "next track");
+      
+      // ACTUALLY SWITCH TO THE NEXT TRACK
+      // Set auto-play flag if we were playing
+      shouldAutoPlayAfterSrcChange.current = wasPlaying;
+      setAudioSrc(baseURL + next);
+      //setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Soda Pop.mp3");
+
     } else {
+      // TODO: ADD TO QUEUE FROM SAME GENRE AS LAST ONE
       setStatus("end of queue");
       // If no next track, stop playback
       if (isSessionActive) {
@@ -480,9 +508,6 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       return;
     }
 
-    // Set auto-play flag if we were playing
-    shouldAutoPlayAfterSrcChange.current = wasPlaying;
-    setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Soda Pop.mp3");
   };
 
   // Store goNext in ref so it can be called from event handlers
@@ -499,14 +524,17 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
     const prev = queueRef.current.getPrev();
     if (prev) {
-      setCurrentTrack({
-        name: prev.replace(".mp3", "").replace(/_/g, " "),
-        artist: "AI DJ",
-      });
+      setCurrentTrack(getSongDataForCard(prev));
       const upcoming = queueRef.current.peekNext();
-      setNextTrack(upcoming ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" } : null);
+      setNextTrack(upcoming ? getSongDataForCard(upcoming) : getSongDataForCard(null));
       setStatus(wasPlaying ? "loading previous track..." : "previous track");
+
+      // actually switch to this track
+      shouldAutoPlayAfterSrcChange.current = wasPlaying;
+      setAudioSrc(baseURL + prev);
+      //setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
     } else {
+      // TODO: JUST RESTART THE SONG BRUH
       setStatus("start of queue");
       // If at start of queue, stop playback
       if (isSessionActive) {
@@ -515,10 +543,6 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       }
       return;
     }
-
-    // Set auto-play flag if we were playing
-    shouldAutoPlayAfterSrcChange.current = wasPlaying;
-    setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
   };
 
   useEffect(() => {
