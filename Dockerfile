@@ -17,7 +17,7 @@ RUN npm install
 # Build the application
 COPY . .
 # Run your standard build command (e.g., 'yarn build' for Vite)
-RUN yarn build
+RUN npm run build
 
 # --- Stage 2: Serve the Static Files with Nginx ---
 FROM nginx:1.25-alpine AS final
