@@ -36,7 +36,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
   const goNextRef = useRef<(() => void) | null>(null);
   const shouldAutoPlayAfterSrcChange = useRef<boolean>(false);
   const liveMusicHelperRef = useRef<LiveMusicHelper | null>(null);
-  const [audioSrc, setAudioSrc] = useState<string>("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
+  const [audioSrc, setAudioSrc] = useState<string>(null);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
 
@@ -231,16 +231,23 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
   // initial tracklist to seed the queue
   const baseURL = "https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/";
-  const initialTracks = ["pop/Golden.mp3", "pop/Soda Pop.mp3", "pop/Your Idol.mp3", "pop/Opalite.mp3"];
+  //const initialTracks = ["pop/Golden.mp3", "pop/Opalite.mp3"];
   const queueRef = useRef<DoublyLinkedQueue<string>>(new DoublyLinkedQueue());
 
   // Initialize everything on mount - queue, camera, and LiveMusicHelper
   useEffect(() => {
     // 1. Populate queue
     const q = queueRef.current;
-    initialTracks.forEach((t) => q.enqueue(t));
+    if (q.isEmpty()) {
+      const genre = "pop";
+      const song1 = getRandomSongFromGenre(genre, "");
+      q.enqueue(song1);
+      const song2 = getRandomSongFromGenre(genre, song1.split("/")[1].replace(".mp3", ""));
+      q.enqueue(song2);
+      setAudioSrc(baseURL + song1);
+    }
+    //initialTracks.forEach((t) => q.enqueue(t));
     // TODO: with base of golden, could choose 2 songs randomly to queue after that
-
     // 2. Set initial UI from queue
     const cur = q.peekCurrent();
     const nxt = q.peekNext();
