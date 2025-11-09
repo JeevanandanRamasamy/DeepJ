@@ -132,15 +132,6 @@ const DJInterface: React.FC = () => {
       }
   };
 
-  const changeSource = (newSrc: string) => {
-      if (audioRef.current) {
-          // pause current playback, swap the source and reload the element
-          audioRef.current.pause();
-          audioRef.current.src = newSrc;
-          audioRef.current.load();
-      }
-  };
-
 
   // initial tracklist to seed the queue
   const initialTracks = ["chill_vibes.mp3", "focus_mode.mp3", "party_starter.mp3", "happy.mp3"];
@@ -254,6 +245,10 @@ const DJInterface: React.FC = () => {
   };
 
   const goNext = () => {
+    if (isSessionActive) {
+      toggleSession();
+    }
+    setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Soda Pop.mp3");
     const next = queueRef.current.getNext();
     if (next) {
       setCurrentTrack({
@@ -269,6 +264,10 @@ const DJInterface: React.FC = () => {
   };
 
   const goPrev = () => {
+    if (isSessionActive) {
+      toggleSession();
+    }
+    setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
     const prev = queueRef.current.getPrev();
     if (prev) {
       setCurrentTrack({
@@ -359,7 +358,7 @@ const DJInterface: React.FC = () => {
             whileTap={{ scale: 0.9 }}
             className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-xs backdrop-blur-md"
           >
-            ⏮
+            "⏮"
           </motion.button>
           <motion.button
             onClick={toggleSession}
@@ -376,7 +375,7 @@ const DJInterface: React.FC = () => {
             whileTap={{ scale: 0.9 }}
             className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-xs backdrop-blur-md"
           >
-            ⏭
+            "⏭"
           </motion.button>
         </div>
 
