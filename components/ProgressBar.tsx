@@ -12,6 +12,7 @@ const VideoProgressBar: React.FC<VideoProgressBarProps> = ({
   onSeek,
 }) => {
   const [progress, setProgress] = useState((currentTime / duration) * 100);
+  const [isDragging, setIsDragging] = useState(false);
   const sliderRef = useRef<HTMLInputElement>(null);
 
   const updateGradient = (value: number) => {
@@ -24,15 +25,70 @@ const VideoProgressBar: React.FC<VideoProgressBarProps> = ({
     }
   };
 
+  // Update progress from props (but not while user is dragging)
+  useEffect(() => {
+    if (!isDragging && duration > 0) {
+      const newProgress = Math.min(100, Math.max(0, (currentTime / duration) * 100));
+      setProgress(newProgress);
+      updateGradient(newProgress);
+    }
+  }, [currentTime, duration, isDragging]);
+
   useEffect(() => {
     updateGradient(progress);
   }, [progress]);
+
+  // Handle mouse up outside the slider
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        if (onSeek && sliderRef.current) {
+          const value = parseInt(sliderRef.current.value);
+          const newTime = (value / 100) * duration;
+          onSeek(newTime);
+        }
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('touchend', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchend', handleGlobalMouseUp);
+    };
+  }, [isDragging, duration, onSeek]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
     setProgress(value);
     updateGradient(value);
+  };
+
+  const handleMouseDown = () => {
+    setIsDragging(true);
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLInputElement>) => {
+    setIsDragging(false);
     if (onSeek) {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      const newTime = (value / 100) * duration;
+      onSeek(newTime);
+    }
+  };
+
+  const handleTouchStart = () => {
+    setIsDragging(true);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLInputElement>) => {
+    setIsDragging(false);
+    if (onSeek) {
+      const value = parseInt((e.target as HTMLInputElement).value);
       const newTime = (value / 100) * duration;
       onSeek(newTime);
     }
@@ -47,6 +103,10 @@ const VideoProgressBar: React.FC<VideoProgressBarProps> = ({
         max="100"
         value={progress}
         onChange={handleChange}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer
           [&::-webkit-slider-thumb]:appearance-none
           [&::-webkit-slider-thumb]:w-3.5

@@ -25,7 +25,11 @@ const DJInterface: React.FC = () => {
   const geminiSessionRef = useRef<GeminiSession | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const goNextRef = useRef<(() => void) | null>(null);
+  const shouldAutoPlayAfterSrcChange = useRef<boolean>(false);
   const [audioSrc, setAudioSrc] = useState<string>("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
 
   // Doubly linked list based queue implementation
   class Node<T> {
@@ -130,6 +134,110 @@ const DJInterface: React.FC = () => {
       if (audioRef.current) {
           audioRef.current.pause();
       }
+  };
+
+  // Sync audio progress with React state
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Reset progress when source changes
+    setCurrentTime(0);
+    setDuration(0);
+
+    // Update duration when metadata loads
+    const handleLoadedMetadata = () => {
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
+    };
+
+    // Update current time as audio plays
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    // Handle when audio ends
+    const handleEnded = () => {
+      setCurrentTime(0);
+      // Auto-advance to next track when song ends
+      if (goNextRef.current) {
+        goNextRef.current();
+      }
+    };
+
+    // Handle when audio can play (ready to play)
+    const handleCanPlay = () => {
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
+      // Auto-play if flag is set (e.g., when advancing to next track)
+      if (shouldAutoPlayAfterSrcChange.current) {
+        shouldAutoPlayAfterSrcChange.current = false;
+        audio.play()
+          .then(() => {
+            setIsSessionActive(true);
+            setStatus("playing • mood-based selection");
+          })
+          .catch((error) => {
+            console.error("Error auto-playing audio:", error);
+          });
+      }
+    };
+
+    // Handle when audio data is loaded (another opportunity to auto-play)
+    const handleLoadedData = () => {
+      if (shouldAutoPlayAfterSrcChange.current && audio.readyState >= 2) {
+        shouldAutoPlayAfterSrcChange.current = false;
+        audio.play()
+          .then(() => {
+            setIsSessionActive(true);
+            setStatus("playing • mood-based selection");
+          })
+          .catch((error) => {
+            console.error("Error auto-playing audio:", error);
+          });
+      }
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('loadeddata', handleLoadedData);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    
+    // Try to auto-play immediately if audio is already ready
+    if (shouldAutoPlayAfterSrcChange.current && audio.readyState >= 2) {
+      setTimeout(() => {
+        if (shouldAutoPlayAfterSrcChange.current && audio.readyState >= 2) {
+          shouldAutoPlayAfterSrcChange.current = false;
+          audio.play()
+            .then(() => {
+              setIsSessionActive(true);
+              setStatus("playing • mood-based selection");
+            })
+            .catch((error) => {
+              console.error("Error auto-playing audio:", error);
+            });
+        }
+      }, 50);
+    }
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('loadeddata', handleLoadedData);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [audioSrc]);
+
+  // Handle seeking from progress bar
+  const handleSeek = (newTime: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
   };
 
 
@@ -245,10 +353,14 @@ const DJInterface: React.FC = () => {
   };
 
   const goNext = () => {
+    // Remember if we were playing before changing tracks
+    const wasPlaying = isSessionActive;
+    
     if (isSessionActive) {
-      toggleSession();
+      // Pause current track before switching
+      handlePause();
     }
-    setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Soda Pop.mp3");
+    
     const next = queueRef.current.getNext();
     if (next) {
       setCurrentTrack({
@@ -257,17 +369,30 @@ const DJInterface: React.FC = () => {
       });
       const upcoming = queueRef.current.peekNext();
       setNextTrack(upcoming ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" } : null);
-      setStatus("next track");
+      setStatus(wasPlaying ? "loading next track..." : "next track");
     } else {
       setStatus("end of queue");
+      // If no next track, stop playback
+      if (isSessionActive) {
+        setIsSessionActive(false);
+        setStatus("end of queue • paused");
+      }
+      return;
     }
+
+    // Set auto-play flag if we were playing
+    shouldAutoPlayAfterSrcChange.current = wasPlaying;
+    setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Soda Pop.mp3");
   };
+  
+  // Store goNext in ref so it can be called from event handlers
+  goNextRef.current = goNext;
 
   const goPrev = () => {
     if (isSessionActive) {
       toggleSession();
     }
-    setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
+
     const prev = queueRef.current.getPrev();
     if (prev) {
       setCurrentTrack({
@@ -277,6 +402,8 @@ const DJInterface: React.FC = () => {
       const upcoming = queueRef.current.peekNext();
       setStatus("start of queue");
     }
+    setAudioSrc("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
+    toggleSession();
   };
 
   useEffect(() => {
@@ -344,7 +471,7 @@ const DJInterface: React.FC = () => {
         <VolumeControl />
 
         {/* wavy progress */}
-        <VideoProgressBar duration={180} currentTime={0} onSeek={(time) => console.log(time)} />
+        <VideoProgressBar duration={duration || 180} currentTime={currentTime} onSeek={handleSeek} />
 
         {/* Controls */}
         <div className="flex items-center gap-4">
@@ -358,7 +485,7 @@ const DJInterface: React.FC = () => {
             whileTap={{ scale: 0.9 }}
             className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-xs backdrop-blur-md"
           >
-            "⏮"
+            ⏮
           </motion.button>
           <motion.button
             onClick={toggleSession}
@@ -375,7 +502,7 @@ const DJInterface: React.FC = () => {
             whileTap={{ scale: 0.9 }}
             className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-xs backdrop-blur-md"
           >
-            "⏭"
+            ⏭
           </motion.button>
         </div>
 
