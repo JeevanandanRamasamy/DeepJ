@@ -177,6 +177,55 @@ const DJInterface: React.FC = () => {
     }
   };
 
+  const handleSeek = (time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleEnded = () => {
+    // Automatically go to next track when current one ends
+    if (goNextRef.current) {
+      goNextRef.current();
+    }
+  };
+
+  // Handle audio source changes and auto-play
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onCanPlay = () => {
+      if (shouldAutoPlayAfterSrcChange.current) {
+        audio.play().then(() => {
+          setIsSessionActive(true);
+          setStatus("playing • next track");
+          shouldAutoPlayAfterSrcChange.current = false;
+        }).catch(err => {
+          console.error("Auto-play failed:", err);
+          shouldAutoPlayAfterSrcChange.current = false;
+        });
+      }
+    };
+
+    audio.addEventListener('canplay', onCanPlay);
+    return () => {
+      audio.removeEventListener('canplay', onCanPlay);
+    };
+  }, [audioSrc]);
 
   // initial tracklist to seed the queue
   const initialTracks = ["chill_vibes.mp3", "focus_mode.mp3", "party_starter.mp3", "happy.mp3"];
@@ -371,6 +420,8 @@ const DJInterface: React.FC = () => {
   const toggleSession = () => {
     if (useLiveMusic && liveMusicHelperRef.current) {
       liveMusicHelperRef.current.playPause();
+      // Sync isSessionActive with live music playback state
+      setIsSessionActive(playbackState !== 'playing');
       return;
     }
 
@@ -388,7 +439,7 @@ const DJInterface: React.FC = () => {
 
   const toggleLiveMusicMode = () => {
     // Stop current playback when switching modes
-    if (isSessionActive) {
+    if (isSessionActive || playbackState === 'playing') {
       if (useLiveMusic && liveMusicHelperRef.current) {
         liveMusicHelperRef.current.stop();
       } else {
@@ -399,9 +450,7 @@ const DJInterface: React.FC = () => {
 
     setUseLiveMusic(!useLiveMusic);
     setStatus(!useLiveMusic ? "Live AI music mode enabled" : "Track playback mode enabled");
-  };
-
-  const goNext = () => {
+  }; const goNext = () => {
     // Remember if we were playing before changing tracks
     const wasPlaying = isSessionActive;
 
@@ -567,7 +616,15 @@ const DJInterface: React.FC = () => {
         <div className="flex items-center gap-4">
           {<motion.button>
             {/* <MyAudioPlayer src={"https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3"} /> */}
-            <audio hidden ref={audioRef} src={audioSrc} controls />
+            <audio
+              hidden
+              ref={audioRef}
+              src={audioSrc}
+              controls
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleEnded}
+            />
           </motion.button>}
 
           {/* Live Music Mode Toggle */}
