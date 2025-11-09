@@ -39,11 +39,9 @@ npm run dev
 
 ### Configuration
 
-⚠️ **Note**: The API key is currently hardcoded for demo purposes. For production:
-
 1. Create a `.env` file:
 ```env
-VITE_GEMINI_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_api_key_here
 ```
 
 2. Update `services/geminiService.ts` and `components/DJInterface.tsx` to use:
@@ -201,7 +199,6 @@ DeepJ/
 
 ## 🐛 Known Limitations
 
-- API key is hardcoded (demo only)
 - Music database requires manual curation
 - Live music mode requires stable internet connection
 - Camera permissions required for mood detection
