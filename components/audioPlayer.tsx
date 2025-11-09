@@ -26,9 +26,9 @@ const changeSource = (newSrc: string) => {
 
   return (
     <div>
-      <audio ref={audioRef} src={src} controls />
-      <button onClick={handlePlay}>Play</button>
-      <button onClick={handlePause}>Pause</button>
+      <audio hidden ref={audioRef} src={src} controls />
+      <button hidden onClick={handlePlay}>Play</button>
+      <button hidden onClick={handlePause}>Pause</button>
     </div>
   );
 };

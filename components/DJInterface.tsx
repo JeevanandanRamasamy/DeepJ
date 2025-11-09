@@ -24,6 +24,8 @@ const DJInterface: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const geminiSessionRef = useRef<GeminiSession | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioSrc, setAudioSrc] = useState<string>("https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3");
 
   // Doubly linked list based queue implementation
   class Node<T> {
@@ -116,6 +118,29 @@ const DJInterface: React.FC = () => {
       return this.length === 0;
     }
   }
+
+  // functions to handle the music playing on the button and the html listener
+  const handlePlay = () => {
+    if (audioRef.current) {
+      audioRef.current.play();
+    }
+  };
+
+  const handlePause = () => {
+      if (audioRef.current) {
+          audioRef.current.pause();
+      }
+  };
+
+  const changeSource = (newSrc: string) => {
+      if (audioRef.current) {
+          // pause current playback, swap the source and reload the element
+          audioRef.current.pause();
+          audioRef.current.src = newSrc;
+          audioRef.current.load();
+      }
+  };
+
 
   // initial tracklist to seed the queue
   const initialTracks = ["chill_vibes.mp3", "focus_mode.mp3", "party_starter.mp3", "happy.mp3"];
@@ -219,9 +244,11 @@ const DJInterface: React.FC = () => {
   const toggleSession = () => {
     if (!isSessionActive) {
       setIsSessionActive(true);
+      handlePlay();
       setStatus("playing • mood-based selection");
     } else {
       setIsSessionActive(false);
+      handlePause();
       setStatus("paused");
     }
   };
@@ -253,9 +280,6 @@ const DJInterface: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    startCamera();
-  }, []);
   useEffect(() => {
     startCamera();
   }, []);
@@ -325,9 +349,10 @@ const DJInterface: React.FC = () => {
 
         {/* Controls */}
         <div className="flex items-center gap-4">
-          {/*<motion.button>
-            <MyAudioPlayer src={"https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3"} />
-          </motion.button>*/}
+          {<motion.button>
+            {/* <MyAudioPlayer src={"https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3"} /> */}
+            <audio hidden ref={audioRef} src={audioSrc} controls />
+          </motion.button>}
 
           <motion.button
             onClick={goPrev}
