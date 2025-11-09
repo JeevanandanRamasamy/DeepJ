@@ -96,7 +96,7 @@ const VideoProgressBar: React.FC<VideoProgressBarProps> = ({
   };
 
   return (
-    <div className="w-[70%] relative group">
+    <div className="w-full relative group">
       <input
         ref={sliderRef}
         type="range"

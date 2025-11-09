@@ -8,7 +8,7 @@ import { LiveMusicHelper } from "@/lib/LiveMusicHelper";
 import MyAudioPlayer from "./audioPlayer";
 import { GoogleGenAI, LiveMusicFilteredPrompt } from "@google/genai";
 import { get } from "http";
-import musicData from '../music/music_data.json';
+import musicData from '@/music/music_data.json';
 
 const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) => {
   const [status, setStatus] = useState("ready");
@@ -261,14 +261,15 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 
   // Initialize LiveMusicHelper
   useEffect(() => {
-    if (!process.env.API_KEY) {
+    const apiKey = "AIzaSyCHBCsfQfN009fzUATYWuEw0rW_cBli2LI"; // WE KNOW THIS IS CURSED BUT IT'S A DEMO
+    if (!apiKey) {
       console.error("GEMINI_API_KEY not configured");
       return;
     }
 
     try {
       const ai = new GoogleGenAI({
-        apiKey: process.env.API_KEY,
+        apiKey: apiKey,
         apiVersion: 'v1alpha'
       });
       const liveMusicHelper = new LiveMusicHelper(ai, 'lyria-realtime-exp');
@@ -652,11 +653,11 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
 >
   <div className="w-[72%] max-w-4xl bg-[#06080e]/95 border border-white/5 rounded-[26px] px-5 py-3 flex items-center gap-4 shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
     {/* LEFT: volume */}
-    <div className="flex items-center gap-3 min-w-[160px]">
+    {/* <div className="flex items-center gap-3 min-w-[160px]">
       <div className="w-32">
         <VolumeControl />
       </div>
-    </div>
+    </div> */}
 
     {/* MIDDLE: progress (your real progress component) */}
     <div className="flex-1">
@@ -697,11 +698,11 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     >
       {((useLiveMusic && playbackState === "playing") || (!useLiveMusic && isSessionActive)) ? (
         <span className="flex gap-1">
-          <span className="w-1.5 h-5 bg-black rounded-sm" />
-          <span className="w-1.5 h-5 bg-black rounded-sm" />
+          <span className="w-1.5 h-4 bg-black rounded-sm" />
+          <span className="w-1.5 h-4 bg-black rounded-sm" />
         </span>
       ) : (
-        <span className="w-0 h-0 border-l-[10px] border-l-black border-y-[6px] border-y-transparent ml-[2px]" />
+        <span className="w-0 h-0 border-l-[15px] border-l-black border-y-[8px] border-y-transparent ml-[2px]" />
       )}
     </button>
   </div>
@@ -728,7 +729,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
   </motion.button>
 
   {/* cam toggle */}
-  {cameraOn ? (
+  {/* {cameraOn ? (
     <button
       onClick={stopCamera}
       className="h-10 px-4 rounded-2xl border border-red-200/30 bg-red-500/15 text-red-100 text-sm hover:bg-red-500/25 transition"
@@ -742,7 +743,7 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     >
       Cam
     </button>
-  )}
+  )} */}
 
   {/* End Session */}
   <button
