@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { connectToGemini, GeminiSession } from "@/services/geminiService";
 import { MusicSuggestion, Prompt, PlaybackState } from "@/types";
-import VolumeControl from "./VolumeControl";
 import VideoProgressBar from "./ProgressBar";
 import { LiveMusicHelper } from "@/lib/LiveMusicHelper";
 import MyAudioPlayer from "./audioPlayer";
@@ -72,6 +71,35 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
       { promptId: "sad-3", text: "Trip Hop", weight: 0.6, color: "#5200ff" },
       { promptId: "sad-4", text: "Lush Strings", weight: 0.5, color: "#3dffab" },
     ],
+  };
+
+  // Color gradients for moods
+  const MOOD_GRADIENTS: Record<string, { start: string; mid: string; end: string }> = {
+    chilling: {
+      start: 'hsl(220, 60%, 55%)',   // calm blue
+      mid: 'hsl(260, 40%, 60%)',     // soft lavender
+      end: 'transparent',
+    },
+    focusing: {
+      start: 'hsl(200, 70%, 45%)',   // deep teal
+      mid: 'hsl(190, 60%, 55%)',     // aqua blue
+      end: 'transparent',
+    },
+    partying: {
+      start: 'hsl(320, 80%, 55%)',   // vibrant magenta
+      mid: 'hsl(25, 90%, 55%)',      // punchy orange
+      end: 'transparent',
+    },
+    happy: {
+      start: 'hsl(50, 95%, 55%)',    // bright yellow
+      mid: 'hsl(35, 90%, 55%)',      // warm gold
+      end: 'transparent',
+    },
+    sad: {
+      start: 'hsl(230, 50%, 40%)',   // deep indigo
+      mid: 'hsl(200, 45%, 50%)',     // cool blue
+      end: 'transparent',
+    },
   };
 
   // Doubly linked list based queue implementation
@@ -667,18 +695,41 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
             Model: Lyria Realtime
           </div>
         )}
-        {/* tiny visualizer just for looks */}
-        <div className="flex gap-1 mt-5 h-6 items-end">
-          {[5, 10, 6, 14, 9, 12, 8].map((h, i) => (
-            <div
+
+        {/* Audio-reactive visualizer */}
+        <div className="flex gap-0.5 mt-1 mb-3 h-12 items-end relative w-full">
+          {Array.from({ length: 24 }).map((_, i) => {
+            const delay = i * 0.04;
+            const baseHeight = 8 + Math.sin(i * 0.5) * 4;
+            const intensity = (useLiveMusic && playbackState === 'playing') || (!useLiveMusic && isSessionActive) ? 1 : 0.3;
+
+            const moodGradient = MOOD_GRADIENTS[detectedMood?.toLowerCase()] || MOOD_GRADIENTS.chilling;
+            return (
+              <div
               key={i}
-              className="w-1 rounded-full bg-gradient-to-t from-rose-500/70 to-rose-300/0"
+              className="flex-1 rounded-full transition-all duration-300"
               style={{
-                height: `${h * 1.6}px`,
-                animation: (useLiveMusic && playbackState === 'playing') ? 'pulse 0.5s ease-in-out infinite' : 'none'
+                height: `${baseHeight}px`,
+                background: `linear-gradient(to top, 
+              ${moodGradient.start} 0%, 
+              ${moodGradient.mid} 50%,
+              ${moodGradient.end} 100%)`,
+                animation: ((useLiveMusic && playbackState === 'playing') || (!useLiveMusic && isSessionActive))
+                ? `audioBar 0.6s ease-in-out infinite ${delay}s`
+                : 'none',
+                opacity: intensity,
+                transform: `scaleY(${0.4 + Math.sin(currentTime * 2 + i) * 0.3})`,
+                boxShadow: intensity > 0.5 ? `0 0 8px ${moodGradient.start}` : 'none'
               }}
-            />
-          ))}
+              />
+            );
+            })}
+            <style jsx>{`
+            @keyframes audioBar {
+              0%, 100% { transform: scaleY(0.4); }
+              50% { transform: scaleY(1.8); }
+            }
+            `}</style>
         </div>
       </div>
 
@@ -771,9 +822,8 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
             <button
               onClick={goPrev}
               disabled={useLiveMusic}
-              className={`w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center transition ${
-                useLiveMusic ? 'opacity-30 cursor-not-allowed' : 'hover:border-white/40'
-              }`}
+              className={`w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center transition ${useLiveMusic ? 'opacity-30 cursor-not-allowed' : 'hover:border-white/40'
+                }`}
             >
               ‹
             </button>
@@ -800,9 +850,8 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
             <button
               onClick={goNext}
               disabled={useLiveMusic}
-              className={`w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center transition ${
-                useLiveMusic ? 'opacity-30 cursor-not-allowed' : 'hover:border-white/40'
-              }`}
+              className={`w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center transition ${useLiveMusic ? 'opacity-30 cursor-not-allowed' : 'hover:border-white/40'
+                }`}
             >
               ›
             </button>
