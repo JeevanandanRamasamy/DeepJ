@@ -243,14 +243,14 @@ const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) =
     const nxt = q.peekNext();
     if (cur) {
       setCurrentTrack({
-        name: cur.replace(".mp3", "").replace(/_/g, " "),
-        artist: "AI DJ",
+        name: cur.split("/").pop()?.replace(".mp3", "").replace(/_/g, " ") || cur.replace(".mp3", "").replace(/_/g, " "),
+        artist: "HUNTR/X",
       });
     }
     if (nxt) {
       setNextTrack({
-        name: nxt.replace(".mp3", "").replace(/_/g, " "),
-        artist: "AI DJ",
+        name: nxt.split("/").pop()?.replace(".mp3", "").replace(/_/g, " ") || nxt.replace(".mp3", "").replace(/_/g, " "),
+        artist: "HUNTR/X",
       });
     }
 
