@@ -249,74 +249,66 @@ const DJInterface: React.FC = () => {
         artist: "AI DJ",
       });
       const upcoming = queueRef.current.peekNext();
-      setNextTrack(upcoming ? { name: upcoming.replace(".mp3", "").replace(/_/g, " "), artist: "AI DJ" } : null);
-      setStatus("previous track");
-    } else {
       setStatus("start of queue");
     }
   };
 
+  useEffect(() => {
+    startCamera();
+  }, []);
+  useEffect(() => {
+    startCamera();
+  }, []);
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#0a0a0a] text-white">
+    <div className="relative w-screen h-screen bg-[#060b16] text-white overflow-hidden">
       {/* CAMERA */}
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
-        className="absolute inset-0 w-full h-full object-cover brightness-75"
+        className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black/80" />
+      {/* slight darken */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#060b16]/50 via-[#060b16]/20 to-[#060b16]" />
 
-      {/* TOP-LEFT NOW PLAYING */}
-      <motion.div
-        className="absolute top-5 left-5 rounded-3xl bg-white/5 backdrop-blur-lg px-5 py-4 shadow-[0_4px_30px_rgba(255,255,255,0.05)]"
-        whileHover={{ scale: 1.03 }}
-      >
-        <p className="text-xs text-white/60 flex items-center gap-1">🎵 Now Playing</p>
-        <p className="text-xl font-semibold leading-tight mt-1">{currentTrack?.name}</p>
-        <p className="text-sm text-white/50">{currentTrack?.artist}</p>
-      </motion.div>
+      {/* TOP-LEFT */}
+      <div className="absolute top-4 left-4 bg-[#0d1422]/95 border border-white/5 rounded-3xl px-6 py-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] w-64">
+        <p className="text-[10px] uppercase tracking-[0.35em] text-white/40 mb-2 flex items-center gap-2">
+          <span className="text-base">🎵</span> now playing
+        </p>
+        <p className="text-2xl font-semibold leading-tight">
+          {currentTrack ? currentTrack.name : "AI picked track"}
+        </p>
+        <p className="text-[11px] text-white/50 mt-2">
+          {currentTrack?.artist || "AI DJ"}
+        </p>
+        {/* tiny visualizer just for looks */}
+        <div className="flex gap-1 mt-5 h-6 items-end">
+          {[5, 10, 6, 14, 9, 12, 8].map((h, i) => (
+            <div
+              key={i}
+              className="w-1 rounded-full bg-gradient-to-t from-rose-500/70 to-rose-300/0"
+              style={{ height: `${h * 1.6}px` }}
+            />
+          ))}
+        </div>
+      </div>
 
-      {/* TOP-RIGHT MOOD */}
-      <div className="absolute top-5 right-5 space-y-3">
-        {detectedMood && energyLevel !== null && (
-          <motion.div
-            className="rounded-3xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 backdrop-blur-xl px-5 py-4 shadow-lg"
-            whileHover={{ scale: 1.02 }}
-          >
-            <p className="text-xs text-purple-300/80 uppercase mb-1">Detected Mood</p>
-            <p className="text-lg font-bold capitalize">{detectedMood}</p>
-
-            {/* M3 wavy progress bar */}
-            <div className="relative h-3 mt-2 overflow-hidden rounded-full bg-white/10">
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-400 opacity-30"
-                animate={{
-                  x: ["0%", "100%"],
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-              />
-            </div>
-            <p className="text-[11px] text-purple-200/80 mt-1 text-right">{energyLevel}/10</p>
-          </motion.div>
-        )}
-
-        {/* NEXT UP */}
-        <motion.div
-          className="rounded-3xl bg-white/5 backdrop-blur-lg px-5 py-4 shadow-[0_4px_20px_rgba(255,255,255,0.05)] text-right"
-          whileHover={{ scale: 1.02 }}
-        >
-          <p className="text-xs text-white/45 mb-1">Next up</p>
-          <p className="text-sm font-medium leading-tight">{nextTrack?.name || "TBD"}</p>
-          <p className="text-[11px] text-white/35">{nextTrack?.artist || "AI DJ"}</p>
-        </motion.div>
+      {/* TOP-RIGHT */}
+      <div className="absolute top-4 right-4 bg-[#0d1422]/80 backdrop-blur-sm border border-dashed border-white/10 rounded-3xl px-5 py-4 min-w-[170px] text-right shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
+        <p className="text-[10px] text-white/45 mb-1 uppercase tracking-[0.25em]">
+          Next up
+        </p>
+        <p className="text-sm font-semibold leading-tight">
+          {nextTrack ? nextTrack.name : "TBD"}
+        </p>
+        <p className="text-[10px] text-white/35 mt-1">{nextTrack?.artist || "AI DJ"}</p>
+        <p className="text-xs text-purple-300/80 uppercase mb-1">Detected Mood</p>
+        <p className="text-lg font-bold capitalize">{detectedMood}</p>
+        <p className="text-[11px] text-purple-200/80 mt-1 text-right">{energyLevel}/10</p>
       </div>
 
       {/* BOTTOM BAR */}
