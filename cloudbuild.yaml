@@ -38,11 +38,11 @@ steps:
       [
         'run',
         'deploy',
-        'gemini-dj-service', # <-- CHANGE THIS to your Cloud Run service name
+        'deepj',
         '--image',
         'gcr.io/$PROJECT_ID/gemini-dj-app:latest',
         '--region',
-        'us-central1', # <-- CHANGE THIS to your region
+        'us-central1',
         '--platform',
         'managed',
         '--allow-unauthenticated',
