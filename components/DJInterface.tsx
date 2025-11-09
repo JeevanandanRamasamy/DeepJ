@@ -8,7 +8,7 @@ import { LiveMusicHelper } from "@/lib/LiveMusicHelper";
 import MyAudioPlayer from "./audioPlayer";
 import { GoogleGenAI, LiveMusicFilteredPrompt } from "@google/genai";
 
-const DJInterface: React.FC = () => {
+const DJInterface: React.FC<{ onEndSession: () => void }> = ({ onEndSession }) => {
   const [status, setStatus] = useState("ready");
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [useLiveMusic, setUseLiveMusic] = useState(false);
@@ -572,8 +572,8 @@ const DJInterface: React.FC = () => {
       </div>
 
       {/* TOP-RIGHT */}
-      <div className="absolute top-4 right-4 bg-[#0d1422]/80 backdrop-blur-sm border border-dashed border-white/10 rounded-3xl px-5 py-4 min-w-[170px] text-right shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-        <p className="text-[10px] text-white/45 mb-1 uppercase tracking-[0.25em]">
+      <div className="absolute top-4 right-4 bg-[#0d1422]/95 border border-white/5 rounded-3xl px-6 py-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] w-64 text-right">
+        <p className="text-[10px] text-white/40 mb-2 uppercase tracking-[0.35em]">
           Next up
         </p>
         <p className="text-sm font-semibold leading-tight">
@@ -584,6 +584,8 @@ const DJInterface: React.FC = () => {
         <p className="text-lg font-bold capitalize">{detectedMood}</p>
         <p className="text-[11px] text-purple-200/80 mt-1 text-right">{energyLevel}/10</p>
       </div>
+      {/* TOP-RIGHT */}
+
 
       {/* LIVE MUSIC PROMPTS - Show when live music is active */}
       {useLiveMusic && activePrompts.length > 0 && (
@@ -618,98 +620,121 @@ const DJInterface: React.FC = () => {
       )}
 
       {/* BOTTOM BAR */}
-      <motion.div
-        className="absolute bottom-5 left-0 right-0 mx-auto w-[92%] max-w-5xl rounded-3xl bg-white/5 backdrop-blur-xl shadow-[0_4px_40px_rgba(255,255,255,0.05)] px-6 py-3 flex items-center gap-5"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        {/* volume */}
+      {/* BOTTOM BAR */}
+<motion.div
+  className="absolute bottom-4 inset-x-0 flex justify-center"
+  initial={{ opacity: 0, y: 16 }}
+  animate={{ opacity: 1, y: 0 }}
+>
+  <div className="w-[72%] max-w-4xl bg-[#06080e]/95 border border-white/5 rounded-[26px] px-5 py-3 flex items-center gap-4 shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
+    {/* LEFT: volume */}
+    <div className="flex items-center gap-3 min-w-[160px]">
+      <div className="w-32">
         <VolumeControl />
+      </div>
+    </div>
 
-        {/* wavy progress */}
-        <VideoProgressBar duration={duration || 180} currentTime={currentTime} onSeek={handleSeek} />
+    {/* MIDDLE: progress (your real progress component) */}
+    <div className="flex-1">
+      <VideoProgressBar
+        duration={duration || 180}
+        currentTime={currentTime}
+        onSeek={handleSeek}
+      />
+    </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-4">
-          {<motion.button>
-            {/* <MyAudioPlayer src={"https://storage.googleapis.com/run-sources-deepj-477603-us-central1/songs/pop/Golden.mp3"} /> */}
-            <audio
-              hidden
-              ref={audioRef}
-              src={audioSrc}
-              controls
-              onLoadedMetadata={handleLoadedMetadata}
-              onTimeUpdate={handleTimeUpdate}
-              onEnded={handleEnded}
-            />
-          </motion.button>}
+{/* RIGHT: controls */}
+<div className="flex items-center gap-3">
+  {/* hidden audio element */}
+  <audio
+    hidden
+    ref={audioRef}
+    src={audioSrc}
+    controls
+    onLoadedMetadata={handleLoadedMetadata}
+    onTimeUpdate={handleTimeUpdate}
+    onEnded={handleEnded}
+  />
 
-          {/* Live Music Mode Toggle */}
-          <motion.button
-            onClick={toggleLiveMusicMode}
-            whileTap={{ scale: 0.9 }}
-            className={`px-3 py-1.5 rounded-full text-[10px] font-semibold backdrop-blur-md transition-all ${useLiveMusic
-              ? "bg-gradient-to-r from-cyan-400/80 to-blue-500/80 text-white border border-cyan-300/50"
-              : "bg-white/10 hover:bg-white/20 text-white/70 border border-white/20"
-              }`}
-            title={useLiveMusic ? "Using AI Live Music" : "Using Track Playback"}
-          >
-            {useLiveMusic ? "🎼 Live AI" : "💿 Tracks"}
-          </motion.button>
+  {/* prev – always show */}
+  <button
+    onClick={goPrev}
+    className="w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center hover:border-white/40 transition"
+  >
+    ‹
+  </button>
 
-          {!useLiveMusic && (
-            <motion.button
-              onClick={goPrev}
-              whileTap={{ scale: 0.9 }}
-              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-xs backdrop-blur-md"
-            >
-              ⏮
-            </motion.button>
-          )}
-          <motion.button
-            onClick={toggleSession}
-            whileTap={{ scale: 0.9 }}
-            className={`w-11 h-11 rounded-full ${(useLiveMusic && playbackState === 'playing') || (!useLiveMusic && isSessionActive)
-              ? "bg-gradient-to-r from-pink-400 to-purple-500 text-white"
-              : "bg-white/90 text-black"
-              } font-semibold shadow-lg hover:shadow-xl transition-transform`}
-          >
-            {((useLiveMusic && playbackState === 'playing') || (!useLiveMusic && isSessionActive)) ? "⏸" : "▶"}
-          </motion.button>
-          {!useLiveMusic && (
-            <motion.button
-              onClick={goNext}
-              whileTap={{ scale: 0.9 }}
-              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-xs backdrop-blur-md"
-            >
-              ⏭
-            </motion.button>
-          )}
-        </div>
+  {/* play / pause with glow */}
+  <div className="relative flex items-center justify-center">
+    <div className="absolute w-14 h-14 rounded-full bg-[#ff4f6e]/55 blur-lg opacity-80 pointer-events-none" />
+    <button
+      onClick={toggleSession}
+      className="relative w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_30px_rgba(255,79,110,0.5)] hover:scale-105 transition"
+    >
+      {((useLiveMusic && playbackState === "playing") || (!useLiveMusic && isSessionActive)) ? (
+        <span className="flex gap-1">
+          <span className="w-1.5 h-5 bg-black rounded-sm" />
+          <span className="w-1.5 h-5 bg-black rounded-sm" />
+        </span>
+      ) : (
+        <span className="w-0 h-0 border-l-[10px] border-l-black border-y-[6px] border-y-transparent ml-[2px]" />
+      )}
+    </button>
+  </div>
 
-        {/* Camera / AI */}
-        <motion.div
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          className="ml-auto"
-        >
-          {cameraOn ? (
-            <button
-              onClick={stopCamera}
-              className="w-8 h-8 rounded-lg bg-gradient-to-r from-red-500/70 to-pink-600/70 text-white text-xs shadow-md hover:shadow-lg"
-            >
-              Cam
-            </button>
-          ) : (
-            <button
-              onClick={startCamera}
-              className="w-8 h-8 rounded-lg bg-gradient-to-r from-green-400/70 to-teal-500/70 text-white text-xs shadow-md hover:shadow-lg"
-            >
-              AI
-            </button>
-          )}
-        </motion.div>
-      </motion.div>
+  {/* next – always show */}
+  <button
+    onClick={goNext}
+    className="w-10 h-10 rounded-full border border-white/10 bg-black/10 text-white/80 flex items-center justify-center hover:border-white/40 transition"
+  >
+    ›
+  </button>
+
+  {/* Tracks / Live toggle – AFTER prev/play/next */}
+  <motion.button
+    onClick={toggleLiveMusicMode}
+    whileTap={{ scale: 0.9 }}
+    className={`px-3 py-1.5 rounded-full text-[10px] font-semibold backdrop-blur-md transition-all ${
+      useLiveMusic
+        ? "bg-gradient-to-r from-cyan-400/80 to-blue-500/80 text-white border border-cyan-300/50"
+        : "bg-white/10 hover:bg-white/20 text-white/70 border border-white/20"
+    }`}
+  >
+    {useLiveMusic ? "🎼 Live AI" : "💿 Tracks"}
+  </motion.button>
+
+  {/* cam toggle */}
+  {cameraOn ? (
+    <button
+      onClick={stopCamera}
+      className="h-10 px-4 rounded-2xl border border-red-200/30 bg-red-500/15 text-red-100 text-sm hover:bg-red-500/25 transition"
+    >
+      Cam on
+    </button>
+  ) : (
+    <button
+      onClick={startCamera}
+      className="h-10 px-4 rounded-2xl border border-green-200/30 bg-green-500/15 text-green-100 text-sm hover:bg-green-500/25 transition"
+    >
+      Cam
+    </button>
+  )}
+
+  {/* End Session */}
+  <button
+    onClick={() => {
+      stopCamera();
+      setIsSessionActive(false);
+      onEndSession?.(); // if you're passing it from App
+    }}
+    className="h-10 px-5 rounded-2xl border border-white/10 bg-[#ff4f6e]/20 text-[#ff4f6e] text-sm hover:bg-[#ff4f6e]/30 transition"
+  >
+    End Session
+  </button>
+</div>
+
+  </div>
+</motion.div>
 
       {/* STATUS */}
       <div className="absolute bottom-2 left-5 text-[11px] text-white/50">{status}</div>

@@ -16,14 +16,15 @@ const VideoProgressBar: React.FC<VideoProgressBarProps> = ({
   const sliderRef = useRef<HTMLInputElement>(null);
 
   const updateGradient = (value: number) => {
-    if (sliderRef.current) {
-      sliderRef.current.style.background = `linear-gradient(to right,
-        rgb(129,140,248) 0%,
-        rgb(192,132,252) ${value / 2}%,
-        rgb(244,114,182) ${value}%,
-        rgba(255,255,255,0.1) ${value}%)`;
-    }
-  };
+  if (sliderRef.current) {
+    sliderRef.current.style.background = `linear-gradient(to right,
+      rgba(255,79,110,1) 0%,
+      rgba(255,79,110,0.85) ${value / 2}%,
+      rgba(255,79,110,0.7) ${value}%,
+      rgba(255,255,255,0.08) ${value}%)`;
+  }
+};
+
 
   // Update progress from props (but not while user is dragging)
   useEffect(() => {
