@@ -1,6 +1,7 @@
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type, Blob as GeminiBlob, Content } from "@google/genai";
 import { MusicSuggestion } from "../types";
 import musicData from '../music/music_data.json';
+import { throttle } from '../lib/throttle';
 
 console.log("[GeminiService] Module loaded");
 
@@ -76,6 +77,61 @@ Respond with ONLY an array of genres from the list above, nothing else.`;
 
     return genres;
 }
+
+// Throttled version of song selection - allows at most one call per 30 seconds
+const throttledSongSelection = throttle(
+    async (
+        mood: string,
+        energyLevel: number,
+        apiKey: string,
+        onSuggestion: (suggestion: MusicSuggestion) => void,
+        currentSession: any,
+        fc: any
+    ) => {
+        console.log(`[GeminiService] 🎵 Throttled song selection executing for mood: ${mood}`);
+        
+        try {
+            const genres = await selectGenresForMood(mood, energyLevel, apiKey);
+            console.log(`[GeminiService] ✓ Selected genres: ${genres}`);
+
+            const genre = genres[Math.floor(Math.random() * genres.length)];
+            console.log(`[GeminiService] 🎯 Chosen genre for track selection: ${genre}`);
+
+            const track = musicData[genre][Math.floor(Math.random() * musicData[genre].length)]["name"];
+            const trackFilename = `${genre}/${track}.mp3`;
+
+            // Create the suggestion object
+            const suggestion: MusicSuggestion = {
+                mood: mood as MusicSuggestion['mood'],
+                energyLevel,
+                trackFilename
+            };
+
+            console.log("[GeminiService] 🎵 Song selected:", suggestion);
+            onSuggestion(suggestion);
+
+            // Send response to Live API
+            if (currentSession) {
+                try {
+                    await currentSession.sendToolResponse({
+                        functionResponses: {
+                            id: fc.id,
+                            name: fc.name,
+                            response: { result: 'Mood acknowledged.' }
+                        }
+                    });
+                    console.log("[GeminiService] ✓ Tool response sent");
+                } catch (error) {
+                    console.error("[GeminiService] ✗ Error sending tool response:", error);
+                    console.log("[GeminiService] This might indicate the session closed, will reconnect on next attempt");
+                }
+            }
+        } catch (error) {
+            console.error("[GeminiService] ✗ Error selecting song:", error);
+        }
+    },
+    30000 // 30 seconds
+);
 
 const createSystemInstruction = (): Content => {
     console.log("[GeminiService] Creating system instruction for mood detection");
@@ -186,46 +242,8 @@ export async function connectToGemini(
                                 console.log(`[GeminiService] 🎭 Mood changed: ${lastMood || 'none'} → ${mood}`);
                                 lastMood = mood;
 
-                                // Stage 2: Select genres
-                                try {
-                                    const genres = await selectGenresForMood(mood, energyLevel, apiKey);
-                                    console.log(`[GeminiService] ✓ Selected genres: ${genres}`);
-
-                                    const genre = genres[Math.floor(Math.random() * genres.length)];
-                                    console.log(`[GeminiService] 🎯 Chosen genre for track selection: ${genre}`);
-
-                                    const track = musicData[genre][Math.floor(Math.random() * musicData[genre].length)]["name"];
-                                    const trackFilename = `${genre}/${track}.mp3`;
-
-                                    // Create the suggestion object
-                                    const suggestion: MusicSuggestion = {
-                                        mood: mood as MusicSuggestion['mood'],
-                                        energyLevel,
-                                        trackFilename
-                                    };
-
-                                    console.log("[GeminiService] 🎵 Song selected:", suggestion);
-                                    onSuggestion(suggestion);
-
-                                    // Send response to Live API
-                                    if (currentSession) {
-                                        try {
-                                            await currentSession.sendToolResponse({
-                                                functionResponses: {
-                                                    id: fc.id,
-                                                    name: fc.name,
-                                                    response: { result: 'Mood acknowledged.' }
-                                                }
-                                            });
-                                            console.log("[GeminiService] ✓ Tool response sent");
-                                        } catch (error) {
-                                            console.error("[GeminiService] ✗ Error sending tool response:", error);
-                                            console.log("[GeminiService] This might indicate the session closed, will reconnect on next attempt");
-                                        }
-                                    }
-                                } catch (error) {
-                                    console.error("[GeminiService] ✗ Error selecting song:", error);
-                                }
+                                // Stage 2: Select genres (throttled to once per 30 seconds)
+                                throttledSongSelection(mood, energyLevel, apiKey, onSuggestion, currentSession, fc);
                             }
                         }
                     }
