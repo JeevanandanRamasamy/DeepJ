@@ -111,11 +111,10 @@ export async function connectToGemini(
     console.log("[GeminiService] Stage 1: Setting up Live API for mood detection");
     console.log("[GeminiService] Stage 2: Will use standard API for song selection");
 
-    if (!process.env.API_KEY) {
-        console.error("[GeminiService] API_KEY environment variable not set");
-        throw new Error("API_KEY environment variable not set");
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("[GeminiService] VITE_GEMINI_API_KEY environment variable not set in the client bundle");
     }
-    const apiKey = process.env.API_KEY;
     const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = createSystemInstruction();

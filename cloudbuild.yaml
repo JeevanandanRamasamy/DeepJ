@@ -1,60 +1,58 @@
+# 1. Fetch the secret from Secret Manager and write to a file
 steps:
-  # Build the container image
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'FETCH_SECRET'
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:latest'
-      - '.'
+      - '-c'
+      - |
+        # Access the secret payload, base64 decode it, and save to a temporary file
+        gcloud secrets versions access latest --secret="GEMINI_API_KEY" --format="get(payload.data)" | \
+        tr '_-' '/+' | \
+        base64 -d > /workspace/gemini_api_key.txt
+    secretEnv: ['GEMINI_API_KEY_SECRET'] # Placeholder to ensure the builder has access
 
-  # Push the container image
+# 2. Build the Docker image, passing the key as a build argument
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'BUILD_IMAGE'
     args:
-      - 'push'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
+      [
+        'build',
+        '--build-arg',
+        # Pass the key from the temporary file to the Dockerfile
+        'GEMINI_API_KEY_ARG=$(cat /workspace/gemini_api_key.txt)',
+        '-t',
+        'gcr.io/$PROJECT_ID/gemini-dj-app:latest',
+        '.',
+      ]
 
+# 3. Push the image to Google Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:latest'
+    id: 'PUSH_IMAGE'
+    args: ['push', 'gcr.io/$PROJECT_ID/gemini-dj-app:latest']
 
-  # Deploy to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+# 4. Deploy the image to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'DEPLOY_RUN'
     args:
-      - 'run'
-      - 'deploy'
-      - 'deepj'
-      - '--image'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--memory'
-      - '2Gi'
-      - '--cpu'
-      - '2'
-      - '--timeout'
-      - '300'
-      - '--min-instances'
-      - '0'
-      - '--max-instances'
-      - '10'
-      - '--set-env-vars'
-      - 'GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,VERTEX_AI_LOCATION=us-central1,GEMINI_MODEL=gemini-1.5-pro-latest,FLASK_ENV=production'
-      - '--set-secrets'
-      - 'GEMINI_API_KEY=GEMINI_API_KEY:latest'
+      [
+        'run',
+        'deploy',
+        'gemini-dj-service', # <-- CHANGE THIS to your Cloud Run service name
+        '--image',
+        'gcr.io/$PROJECT_ID/gemini-dj-app:latest',
+        '--region',
+        'us-central1', # <-- CHANGE THIS to your region
+        '--platform',
+        'managed',
+        '--allow-unauthenticated',
+      ]
 
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:$SHORT_SHA'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/deepj:latest'
+  - 'gcr.io/$PROJECT_ID/gemini-dj-app:latest'
 
-options:
-  machineType: 'E2_HIGHCPU_8'
-  logging: CLOUD_LOGGING_ONLY
-
-timeout: '1200s'
+# Bind the secret to the build process so gcloud can fetch it
+availableSecrets:
+  secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/GEMINI_API_KEY/versions/latest
+    env: GEMINI_API_KEY_SECRET # This is a placeholder and not used to expose the key
