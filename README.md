@@ -2,6 +2,8 @@
 
 An intelligent DJ application that reads the room's energy through your camera and microphone, then curates the perfect musical vibe in real-time using Google's Gemini AI.
 
+![DeepJ - AI-Powered DJ](assets/deepj.png)
+
 ## 🎯 Motivation & Purpose
 
 **DeepJ** bridges the gap between human intuition and AI-powered music curation. Traditional music apps require manual selection, while DeepJ:
